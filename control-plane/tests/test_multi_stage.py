@@ -22,13 +22,9 @@ from iasg.config import Settings
 from iasg.correlation.agent import CorrelationAgent
 from iasg.models import (
     ACTION_ESCALATE,
-    ACTION_TEMP_BLOCK,
-    ACTION_THROTTLE,
     CAMPAIGN_MULTI_STAGE,
-    Campaign,
     Evidence,
 )
-from iasg.policy.agent import PolicyAgent
 from iasg.runner import Runner
 from iasg.store.memory import MemoryStore
 from tools.seed_evidence import SCENARIOS
@@ -59,11 +55,6 @@ def kill_chain(ip=IP, recon=4, creds=12, sqli=6):
 
 def analyse(events):
     return CorrelationAgent().analyse(events)
-
-
-def action_for(campaign):
-    decisions = PolicyAgent().decide(campaign)
-    return decisions[0].action if decisions else "monitor"
 
 
 # --- recognising the phases ---
@@ -137,50 +128,6 @@ def test_single_phase_scenarios_are_untouched():
         (campaign, *_) = analyse(SCENARIOS[name]())
         assert campaign.type == expected, f"{name} became {campaign.type}"
         assert len(campaign.stages) == 1
-
-
-# --- answering it ---
-
-def test_progression_is_answered_more_firmly_than_its_loudest_phase():
-    (staged,) = analyse(kill_chain())
-    (creds_only,) = analyse(
-        [ev(300 + n * 5, "/api/login", "bruteforce") for n in range(12)]
-    )
-
-    assert action_for(creds_only) == ACTION_THROTTLE
-    assert action_for(staged) == ACTION_ESCALATE
-
-
-def test_each_phase_beyond_the_first_is_worth_one_rung():
-    two_phases = kill_chain(sqli=0)
-    (campaign,) = analyse(two_phases)
-
-    assert campaign.stages == ["reconnaissance", "credential attack"]
-    assert action_for(campaign) == ACTION_TEMP_BLOCK
-
-
-def test_escalation_still_needs_high_severity():
-    quiet = [
-        ev(n * 5, f"/secret{n}", "enumeration", severity="low") for n in range(4)
-    ] + [
-        ev(300 + n * 5, "/api/login", "bruteforce", severity="low")
-        for n in range(12)
-    ] + [
-        ev(900 + n * 5, "/api/search", "sqli", severity="low") for n in range(6)
-    ]
-    (campaign,) = analyse(quiet)
-
-    assert len(campaign.stages) == 3
-    assert action_for(campaign) == ACTION_TEMP_BLOCK
-
-
-def test_the_written_policy_names_the_phases():
-    (campaign,) = analyse(kill_chain())
-    campaign.campaign_id = "1"
-    (decision,) = [d for d in PolicyAgent().decide(campaign)]
-
-    assert "progressed through reconnaissance -> credential attack" in decision.reason
-    assert "progressed through" in decision.to_json()
 
 
 # --- phases arriving across separate cycles ---

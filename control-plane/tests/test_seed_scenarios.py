@@ -9,8 +9,10 @@ from __future__ import annotations
 
 import pytest
 
+from iasg.config import Settings
 from iasg.correlation.agent import CorrelationAgent
-from iasg.policy.agent import PolicyAgent
+from iasg.runner import Runner
+from iasg.store.memory import MemoryStore
 from tools.seed_evidence import SCENARIOS
 
 
@@ -18,9 +20,13 @@ def analyse(name):
     return CorrelationAgent().analyse(SCENARIOS[name]())
 
 
-def action_for(campaign):
-    decisions = PolicyAgent().decide(campaign)
-    return decisions[0].action if decisions else "monitor"
+def policies_written(name):
+    """What the real cycle turns a scenario into: the policy keys the gateway would read."""
+    store = MemoryStore()
+    for e in SCENARIOS[name]():
+        store.append("iasg:events", e.to_stream_fields())
+    Runner(Settings(), store).cycle()
+    return store.keys("policy:*")
 
 
 @pytest.mark.parametrize("name", sorted(SCENARIOS))
@@ -60,16 +66,13 @@ def test_a_sustained_lone_attacker_is_blockable():
     (campaign,) = analyse("brute-force")
 
     assert campaign.confidence >= 0.75
-    assert action_for(campaign) == "temp_block"
+    assert policies_written("brute-force")
 
 
 def test_every_attack_scenario_is_actioned():
     for name in ("credential-stuffing", "brute-force", "flood",
                  "enumeration", "path-traversal", "recon", "sqli"):
-        campaign = analyse(name)[0]
-        assert action_for(campaign) != "monitor", (
-            f"{name} produced no action -- confidence {campaign.confidence}"
-        )
+        assert policies_written(name), f"{name} produced no policy"
 
 
 # The one scenario that must NOT group. Unrelated traffic looking like a

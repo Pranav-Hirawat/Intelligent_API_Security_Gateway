@@ -30,9 +30,7 @@ class IPProfile:
     first_seen: datetime | None = None
     last_seen: datetime | None = None
     event_count: int = 0
-    failed_logins: int = 0
     distinct_users: int = 0
-    request_count: int = 0
 
     def add(self, ev: Evidence) -> None:
         self.event_count += 1
@@ -56,9 +54,7 @@ class IPProfile:
         # Detector-specific numbers. Keep the highest seen, since detectors
         # report a running total rather than a delta.
         d = ev.details or {}
-        self.failed_logins = max(self.failed_logins, _as_int(d.get("failedLogins")))
         self.distinct_users = max(self.distinct_users, _as_int(d.get("distinctUsers")))
-        self.request_count = max(self.request_count, _as_int(d.get("requestCount")))
 
     @property
     def top_endpoint(self) -> str:

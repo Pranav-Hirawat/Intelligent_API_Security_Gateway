@@ -16,10 +16,8 @@ already keep current:
   at demo pace, with the live talking points.
 - **[Adaptive Policy and Analyst Control](../gateway/docs/adaptive-policy.md)**
   documents the engine that actually decides and enforces today —
-  `iasg/adaptive/`, not the `iasg/policy/agent.py` ladder this page described
-  as current. That ladder is still in the tree, but only as a legacy
-  compatibility surface; see `ALGORITHMS.md` for which parts of `iasg/policy/`
-  are actually on the live path.
+  `iasg/adaptive/`. The fixed action ladder this page once described has been
+  removed; `ALGORITHMS.md` lists what `iasg/policy/` still does.
 
 If you're looking for the specific history of how evidence → campaign →
 policy was first built, before enforcement existed to act on it, that's still

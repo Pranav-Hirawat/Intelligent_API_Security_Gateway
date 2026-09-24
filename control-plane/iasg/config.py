@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 
 from iasg.adaptive.config import AdaptiveConfig, load_adaptive_config
 
@@ -106,51 +106,15 @@ class Settings:
 
     @classmethod
     def from_env(cls) -> "Settings":
-        return cls(
-            redis_url=os.getenv("IASG_REDIS_URL", cls.redis_url),
-            evidence_stream=os.getenv("IASG_EVIDENCE_STREAM", cls.evidence_stream),
-            consumer_group=os.getenv("IASG_CONSUMER_GROUP", cls.consumer_group),
-            consumer_name=os.getenv("IASG_CONSUMER_NAME", cls.consumer_name),
-            batch_size=_env_int("IASG_BATCH_SIZE", cls.batch_size),
-            interval_seconds=_env_int("IASG_INTERVAL_SECONDS", cls.interval_seconds),
-            heartbeat_key=os.getenv("IASG_HEARTBEAT_KEY", cls.heartbeat_key),
-            reset_watermark_key=os.getenv("IASG_RESET_WATERMARK_KEY", cls.reset_watermark_key),
-            policy_prefix=os.getenv("IASG_POLICY_PREFIX", cls.policy_prefix),
-            max_ips_per_cycle=_env_int("IASG_MAX_IPS_PER_CYCLE", cls.max_ips_per_cycle),
-            dry_run=_env_bool("IASG_DRY_RUN", cls.dry_run),
-            allowlist=_env_tuple("IASG_ALLOWLIST", cls.allowlist),
-            shared_ranges=_env_tuple("IASG_SHARED_RANGES", cls.shared_ranges),
-            shared_address_agents=_env_int(
-                "IASG_SHARED_ADDRESS_AGENTS", cls.shared_address_agents
-            ),
-            override_stream=os.getenv("IASG_OVERRIDE_STREAM", cls.override_stream),
-            override_group=os.getenv("IASG_OVERRIDE_GROUP", cls.override_group),
-            feedback_prefix=os.getenv("IASG_FEEDBACK_PREFIX", cls.feedback_prefix),
-            feedback_min_samples=_env_int(
-                "IASG_FEEDBACK_MIN_SAMPLES", cls.feedback_min_samples
-            ),
-            llm_provider=os.getenv("IASG_LLM_PROVIDER", cls.llm_provider),
-            ollama_url=os.getenv("IASG_OLLAMA_URL", cls.ollama_url),
-            ollama_model=os.getenv("IASG_OLLAMA_MODEL", cls.ollama_model),
-            ollama_timeout_seconds=_env_int(
-                "IASG_OLLAMA_TIMEOUT_SECONDS", cls.ollama_timeout_seconds
-            ),
-            narration_budget_seconds=_env_int(
-                "IASG_NARRATION_BUDGET_SECONDS", cls.narration_budget_seconds
-            ),
-            postgres_url=os.getenv("IASG_POSTGRES_URL"),
-            adaptive=load_adaptive_config(os.getenv("IASG_ADAPTIVE_CONFIG")),
-            arrival_stream=os.getenv("IASG_ARRIVAL_STREAM", cls.arrival_stream),
-            health_stream=os.getenv("IASG_HEALTH_STREAM", cls.health_stream),
-            window_consumer_group=os.getenv(
-                "IASG_WINDOW_CONSUMER_GROUP", cls.window_consumer_group
-            ),
-            window_consumer_name=os.getenv(
-                "IASG_WINDOW_CONSUMER_NAME", cls.window_consumer_name
-            ),
-            window_completion_grace_seconds=_env_int(
-                "IASG_WINDOW_COMPLETION_GRACE_SECONDS",
-                cls.window_completion_grace_seconds,
-            ),
-        )
-
+        """Every field reads IASG_<NAME>, parsed by the type of its default."""
+        readers = {bool: _env_bool, int: _env_int, tuple: _env_tuple}
+        values = {}
+        for f in fields(cls):
+            env = "IASG_" + f.name.upper()
+            if f.name == "adaptive":
+                values[f.name] = load_adaptive_config(os.getenv("IASG_ADAPTIVE_CONFIG"))
+                continue
+            default = getattr(cls, f.name)
+            read = readers.get(type(default))
+            values[f.name] = read(env, default) if read else os.getenv(env, default)
+        return cls(**values)

@@ -95,7 +95,7 @@ ENFORCEMENT_ACTIONS = frozenset({ACTION_THROTTLE, ACTION_TEMP_BLOCK, ACTION_ESCA
 def _now() -> datetime:
     return datetime.now(timezone.utc)
 
-def _parse_timestamp(raw: str) -> datetime:
+def parse_timestamp(raw: str) -> datetime:
     if raw.endswith("Z"):
         raw = raw[:-1] + "+00:00"
     try:
@@ -141,7 +141,7 @@ class Evidence:
             details = {}
 
         return cls(
-            timestamp=_parse_timestamp(fields.get("timestamp", "")),
+            timestamp=parse_timestamp(fields.get("timestamp", "")),
             ip=fields.get("ip", ""),
             endpoint=fields.get("endpoint", ""),
             detector=fields.get("detector", ""),
@@ -198,7 +198,7 @@ class Evidence:
                     details.setdefault("riskScore", event["riskScore"])
                 found.append(
                     cls(
-                        timestamp=_parse_timestamp(str(event.get("ts", ""))),
+                        timestamp=parse_timestamp(str(event.get("ts", ""))),
                         ip=str(event.get("ip") or ""),
                         endpoint=_evidence_endpoint(detector, event, details),
                         detector=detector,
@@ -482,13 +482,13 @@ class PolicyDecision:
     @classmethod
     def from_dict(cls, value: dict) -> "PolicyDecision":
         endpoint = value.get("endpoint_scope") or {}
-        issued = _parse_timestamp(str(value.get("issued_at") or ""))
+        issued = parse_timestamp(str(value.get("issued_at") or ""))
         action = str(value.get("action") or ACTION_MONITOR)
         if action in ("temporary_block", "block"):
             action = ACTION_TEMP_BLOCK
         expires_in = value.get("expires_in")
         if expires_in is None and value.get("expires_at"):
-            expires = _parse_timestamp(str(value["expires_at"]))
+            expires = parse_timestamp(str(value["expires_at"]))
             expires_in = max(0, int((expires - issued).total_seconds()))
         return cls(
             ip=str(value.get("target_identity") or value.get("ip") or ""),

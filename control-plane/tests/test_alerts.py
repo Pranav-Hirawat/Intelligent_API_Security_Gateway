@@ -7,8 +7,7 @@ from datetime import datetime, timedelta, timezone
 
 from iasg.alerts import AlertSink
 from iasg.config import Settings
-from iasg.models import ACTION_ESCALATE, ACTION_TEMP_BLOCK, Campaign, PolicyDecision
-from iasg.policy.agent import TTL
+from iasg.models import ACTION_ESCALATE, Campaign, PolicyDecision
 from iasg.runner import Runner
 from iasg.store.memory import MemoryStore
 
@@ -30,12 +29,6 @@ def campaign(**overrides) -> Campaign:
 def decision(action=ACTION_ESCALATE) -> PolicyDecision:
     return PolicyDecision(ip="203.0.113.5", action=action, campaign_id="1",
                           confidence=0.95, ttl_seconds=3600)
-
-
-def test_escalation_outlasts_an_ordinary_block():
-    assert TTL[ACTION_ESCALATE] > TTL[ACTION_TEMP_BLOCK], (
-        "a human has been asked to look; the block should still be there when they do"
-    )
 
 
 def test_alert_is_written_to_its_own_stream():
