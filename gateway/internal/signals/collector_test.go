@@ -10,8 +10,6 @@ type fixedScoreDetector struct {
 	score int
 }
 
-func (d fixedScoreDetector) Name() string { return d.name }
-
 func (d fixedScoreDetector) Metrics(string) Evidence {
 	return Evidence{Signal: d.name, Score: d.score}
 }
@@ -34,7 +32,7 @@ func TestCollectorTotalScoreIsAlwaysBounded(t *testing.T) {
 				detectors = append(detectors, fixedScoreDetector{name: string(rune('a' + i)), score: score})
 			}
 
-			if got := NewCollector(detectors...).TotalScore("203.0.113.5"); got != tt.want {
+			if got := NewCollector(detectors...).SnapshotFor("203.0.113.5", "").TotalScore; got != tt.want {
 				t.Fatalf("TotalScore() = %d, want %d", got, tt.want)
 			}
 		})

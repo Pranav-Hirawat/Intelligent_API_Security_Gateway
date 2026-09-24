@@ -7,6 +7,7 @@
 package identity
 
 import (
+	"cmp"
 	"crypto"
 	"crypto/hmac"
 	"crypto/rsa"
@@ -69,9 +70,7 @@ func NewVerifier(cfg config.JWTConfig, getenv func(string) string) (*Verifier, e
 		bypassValues: make(map[string]bool, len(cfg.BypassValues)),
 		now:          time.Now,
 	}
-	if v.userClaim == "" {
-		v.userClaim = "sub"
-	}
+	v.userClaim = cmp.Or(v.userClaim, "sub")
 	for _, value := range cfg.BypassValues {
 		v.bypassValues[value] = true
 	}
@@ -82,9 +81,7 @@ func NewVerifier(cfg config.JWTConfig, getenv func(string) string) (*Verifier, e
 		if cfg.SecretEnv != "" {
 			secret = getenv(cfg.SecretEnv)
 		}
-		if secret == "" {
-			secret = cfg.Secret
-		}
+		secret = cmp.Or(secret, cfg.Secret)
 		if secret == "" {
 			return nil, fmt.Errorf("identity.jwt: %s is not set and the config has no fallback secret", cfg.SecretEnv)
 		}

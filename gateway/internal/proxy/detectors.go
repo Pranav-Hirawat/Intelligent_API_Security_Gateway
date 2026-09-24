@@ -31,7 +31,7 @@ func newDetectors(
 ) detectors {
 	return detectors{
 		flood:      signals.NewFloodDetector(cfg.RateLimit),
-		sqli:       signals.NewSQLiDetector(signals.SQLiDetectorConfigFrom(cfg.AttackDetection)),
+		sqli:       signals.NewSQLiDetector(cfg.AttackDetection),
 		traversal:  signals.NewTraversalEnumDetector(cfg.Enumeration),
 		brute:      signals.NewBruteForceDetector(cfg.BruteForce, routes.AuthOutcomes, routeMatch),
 		routeScan:  signals.NewUnknownRouteScanDetector(cfg.UnknownRouteScan, routeMatch),

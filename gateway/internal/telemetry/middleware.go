@@ -2,6 +2,7 @@ package telemetry
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -151,9 +152,7 @@ func (rc *Recorder) Middleware(next http.Handler) http.Handler {
 			// nobody inspected.
 			snap := rc.Collector.SnapshotFor(ip, requestID)
 			status := rec.status
-			if status == 0 {
-				status = http.StatusOK
-			}
+			status = cmp.Or(status, http.StatusOK)
 
 			ev := Event{
 				RequestID: requestID,

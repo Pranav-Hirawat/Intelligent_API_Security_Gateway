@@ -13,6 +13,7 @@ package ownership
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/json"
 	"errors"
 	"log"
@@ -112,8 +113,6 @@ func splitPath(path string) []string {
 	return strings.Split(path, ".")
 }
 
-func (g *Guard) Name() string { return signals.SignalOwnership }
-
 // Apply swaps the runtime settings. Rules and keys are boot-only.
 func (g *Guard) Apply(cfg config.ObjectOwnershipConfig) {
 	maxBody := cfg.MaxBodyBytes
@@ -128,9 +127,6 @@ func (g *Guard) Apply(cfg config.ObjectOwnershipConfig) {
 }
 
 func (g *Guard) settings() tunables { return *g.tun.Load() }
-
-// Protects reports whether any rule is configured.
-func (g *Guard) Protects() bool { return len(g.rules) > 0 }
 
 func (g *Guard) ruleFor(r *http.Request) (rule, bool) {
 	if g.match == nil || len(g.rules) == 0 || g.verifier == nil {
@@ -255,9 +251,7 @@ func (g *Guard) decide(w http.ResponseWriter, held *heldResponse, protected rule
 			kept = append(kept, item)
 		default:
 			removed++
-			if firstForeign == "" {
-				firstForeign = ownerID
-			}
+			firstForeign = cmp.Or(firstForeign, ownerID)
 		}
 	}
 	if removed == 0 {

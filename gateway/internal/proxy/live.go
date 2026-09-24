@@ -36,7 +36,7 @@ func (l live) apply(cfg config.EnforcementConfig) error {
 
 	l.detectors.apply(cfg)
 	l.gate.Set(cfg.Policy.Enabled)
-	l.enforcer.ApplyAll(anySourceOn(l.reflex, l.gate), throttleDelay(cfg.Throttle), baseline)
+	l.enforcer.ApplyAll(anySourceOn(l.reflex, l.gate), baseline)
 
 	log.Printf("[enforcement] %s", l.reflex.Describe())
 	return nil

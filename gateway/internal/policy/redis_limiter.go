@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"cmp"
 	"context"
 	"crypto/sha256"
 	_ "embed"
@@ -50,12 +51,8 @@ type RedisLimiter struct {
 }
 
 func defaults(cfg Config) Config {
-	if cfg.KeyPrefix == "" {
-		cfg.KeyPrefix = "policy:"
-	}
-	if cfg.BucketPrefix == "" {
-		cfg.BucketPrefix = "iasg:rate:"
-	}
+	cfg.KeyPrefix = cmp.Or(cfg.KeyPrefix, "policy:")
+	cfg.BucketPrefix = cmp.Or(cfg.BucketPrefix, "iasg:rate:")
 	if cfg.RefreshInterval <= 0 {
 		cfg.RefreshInterval = 5 * time.Second
 	}
@@ -131,11 +128,10 @@ func (l *RedisLimiter) Take(ctx context.Context, q QuotaRequest) (QuotaResult, e
 	// An EVALSHA fallback would spend a second round trip inside the budget.
 	values, err := l.client.Eval(ctx, tokenBucketScript, keys,
 		q.RequestsPerMinute, q.Burst, q.Decision.rawPolicy).Slice()
-	if err != nil {
-		l.blockedUntil.Store(time.Now().Add(l.backoff).UnixNano())
-		return QuotaResult{Allowed: true, Reason: "redis_unavailable"}, err
+	var result QuotaResult
+	if err == nil {
+		result, err = decodeQuotaResult(values)
 	}
-	result, err := decodeQuotaResult(values)
 	if err != nil {
 		l.blockedUntil.Store(time.Now().Add(l.backoff).UnixNano())
 		return QuotaResult{Allowed: true, Reason: "redis_unavailable"}, err

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"log"
 	"os"
 
@@ -10,9 +11,7 @@ import (
 
 func main() {
 	cfgPath := os.Getenv("IASG_CONFIG")
-	if cfgPath == "" {
-		cfgPath = "configs/config.yaml"
-	}
+	cfgPath = cmp.Or(cfgPath, "configs/config.yaml")
 
 	cfg, err := config.Load(cfgPath)
 	if err != nil {

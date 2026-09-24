@@ -96,8 +96,6 @@ func NewFloodDetector(cfg config.RateLimitConfig) *FloodDetector {
 	return fd
 }
 
-func (fd *FloodDetector) Name() string { return SignalFlood }
-
 func (fd *FloodDetector) getShard(ip string) *floodShard {
 	var hash uint32
 	for i := 0; i < len(ip); i++ {

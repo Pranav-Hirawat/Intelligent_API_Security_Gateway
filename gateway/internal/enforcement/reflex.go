@@ -330,20 +330,6 @@ func (r *Reflex) sweep(now time.Time) {
 	}
 }
 
-// Size reports how many addresses are currently blocked, for tests and logs.
-func (r *Reflex) Size() int {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	n := 0
-	now := time.Now()
-	for _, b := range r.blocked {
-		if b.until.After(now) {
-			n++
-		}
-	}
-	return n
-}
-
 func (r *Reflex) Close() {
 	if r == nil {
 		return

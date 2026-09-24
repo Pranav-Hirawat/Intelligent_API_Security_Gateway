@@ -40,18 +40,15 @@ type Enforcer struct {
 	lookup Lookuper
 	tun    atomic.Pointer[enforcerTunables]
 
-	// Retained for existing embedders; the server only uses the Redis quota
-	// limiter so replicas cannot invent independent allowances.
-	limiter       *Limiter
 	quota         QuotaLimiter
 	fallbackRPM   int
 	burst         int
 	routeResolver func(method, path string) string
 }
 
-func NewEnforcer(l Lookuper, enabled bool, throttleDelay time.Duration) *Enforcer {
+func NewEnforcer(l Lookuper, enabled bool) *Enforcer {
 	e := &Enforcer{lookup: l}
-	e.Apply(enabled, throttleDelay)
+	e.Apply(enabled)
 	return e
 }
 
@@ -76,16 +73,8 @@ type Baseline struct {
 	Exempt            []*net.IPNet
 }
 
-// WithLimiter gives the enforcer a rate limiter to hold throttled addresses to
-// the rate their policy names.
-func (e *Enforcer) WithLimiter(l *Limiter) *Enforcer {
-	e.limiter = l
-	return e
-}
-
-// The delay argument is retained for callers compiled against the old API;
-// throttling now consumes quota and never sleeps on a request goroutine.
-func (e *Enforcer) Apply(enabled bool, _ time.Duration) {
+// Throttling consumes quota and never sleeps on a request goroutine.
+func (e *Enforcer) Apply(enabled bool) {
 	current := e.tun.Load()
 	next := &enforcerTunables{policyOn: enabled}
 	if current != nil {
@@ -97,7 +86,7 @@ func (e *Enforcer) Apply(enabled bool, _ time.Duration) {
 // ApplyAll sets the policy switch and baseline in one swap,
 // so a request is never judged against a new baseline and an old
 // exemption list.
-func (e *Enforcer) ApplyAll(enabled bool, _ time.Duration, b Baseline) {
+func (e *Enforcer) ApplyAll(enabled bool, b Baseline) {
 	e.tun.Store(&enforcerTunables{
 		policyOn: enabled,
 		baseline: b.RequestsPerMinute,
@@ -184,9 +173,6 @@ func (e *Enforcer) limited(
 		if err != nil {
 			result = QuotaResult{Allowed: true, Reason: "redis_unavailable"}
 		}
-	} else if limit > 0 && e.limiter != nil {
-		// Compatibility for in-process embedders. Production uses Redis.
-		result.Allowed, _, result.RetryAfter = e.limiter.Allow(ip+"\x00"+r.URL.Path+"\x00"+r.Method, limit)
 	} else {
 		result.Reason = "quota_unavailable"
 	}
