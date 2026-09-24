@@ -1,4 +1,5 @@
 import { getRedis } from "@/lib/redis";
+import { parseJson } from "@/lib/plane";
 import { require as requireRole } from "@/lib/auth";
 import { splitSettings, validateSettings } from "@/lib/gateway-settings.mjs";
 
@@ -31,16 +32,20 @@ export const dynamic = "force-dynamic";
 const OVERRIDE_KEY = "iasg:settings";
 const EFFECTIVE_KEY = "iasg:settings:effective";
 
+async function connect() {
+  try {
+    return { redis: await getRedis() };
+  } catch (err) {
+    return { unavailable: Response.json({ ok: false, error: `redis unavailable: ${err.message}` }, { status: 503 }) };
+  }
+}
+
 export async function GET() {
   const gate = await requireRole("admin");
   if (gate.denied) return gate.denied;
 
-  let redis;
-  try {
-    redis = await getRedis();
-  } catch (err) {
-    return Response.json({ ok: false, error: `redis unavailable: ${err.message}` }, { status: 503 });
-  }
+  const { redis, unavailable } = await connect();
+  if (unavailable) return unavailable;
 
   const [effectiveRaw, overrideRaw] = await Promise.all([
     redis.get(EFFECTIVE_KEY),
@@ -89,12 +94,8 @@ export async function POST(request) {
     return Response.json({ ok: false, error: problem }, { status: 400 });
   }
 
-  let redis;
-  try {
-    redis = await getRedis();
-  } catch (err) {
-    return Response.json({ ok: false, error: `redis unavailable: ${err.message}` }, { status: 503 });
-  }
+  const { redis, unavailable } = await connect();
+  if (unavailable) return unavailable;
 
   await redis.set(OVERRIDE_KEY, JSON.stringify(settings));
   console.log(`[admin] ${gate.user.username} changed the enforcement settings`);
@@ -109,22 +110,10 @@ export async function DELETE() {
   const gate = await requireRole("admin");
   if (gate.denied) return gate.denied;
 
-  let redis;
-  try {
-    redis = await getRedis();
-  } catch (err) {
-    return Response.json({ ok: false, error: `redis unavailable: ${err.message}` }, { status: 503 });
-  }
+  const { redis, unavailable } = await connect();
+  if (unavailable) return unavailable;
 
   const removed = await redis.del(OVERRIDE_KEY);
   console.log(`[admin] ${gate.user.username} reverted the enforcement settings to the config file`);
   return Response.json({ ok: true, reverted: removed > 0 });
-}
-
-function parseJson(raw) {
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
 }

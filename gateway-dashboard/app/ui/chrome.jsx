@@ -206,15 +206,16 @@ export function Shell({ children }) {
 }
 
 /**
- * Reset the console to a clean slate.
- *
- * Destructive, so it is two steps: a Settings-page control that opens a
- * dialog, and a dialog that will not act until you type the word the server
- * also demands.
+ * A destructive admin action in two steps: a button that opens a dialog, and a
+ * dialog that will not act until you type the word the server also demands.
  * On success it refreshes the live data, so the console visibly empties rather
- * than waiting for the next poll.
+ * than waiting for the next poll. Reset and Clear campaigns differ only in
+ * what they say and which endpoint they call, so they share this.
  */
-export function ResetControl({ className = "icon-btn", label = "Reset console" }) {
+function TypedConfirmControl({
+  className, label, word, endpoint, dialogId, heading, body, triggerTitle,
+  confirmLabel, busyLabel, disableTriggerWhileBusy, successText,
+}) {
   const { refresh, refreshHistory, setToast } = useLive();
   const [open, setOpen] = useState(false);
   const [confirm, setConfirm] = useState("");
@@ -247,17 +248,17 @@ export function ResetControl({ className = "icon-btn", label = "Reset console" }
   async function run() {
     setBusy(true);
     try {
-      // A reset that outlives the dialog is fine; a reset the dialog can
-      // never come back from is the bug. Bounded so a slow or wedged
-      // Postgres/Redis cannot pin this request open indefinitely.
+      // An action that outlives the dialog is fine; one the dialog can never
+      // come back from is the bug. Bounded so a slow or wedged Postgres/Redis
+      // cannot pin this request open indefinitely.
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 15_000);
       let res;
       try {
-        res = await fetch("/api/admin/reset", {
+        res = await fetch(endpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ confirm: "reset" }),
+          body: JSON.stringify({ confirm: word }),
           signal: controller.signal,
         });
       } finally {
@@ -265,32 +266,24 @@ export function ResetControl({ className = "icon-btn", label = "Reset console" }
       }
       const data = await res.json();
       if (!res.ok || !data.ok) {
-        setToast({ tone: "bad", text: `reset failed: ${data.error || res.status}` });
+        setToast({ tone: "bad", text: `${word} failed: ${data.error || res.status}` });
         return;
       }
-      const pg = data.postgres?.ok
-        ? Object.values(data.postgres.cleared || {}).reduce((a, b) => a + b, 0)
-        : 0;
-      const keys = data.redis?.ok ? data.redis.removed : 0;
-      const events = data.redis?.ok ? data.redis.trimmed : 0;
-      setToast({
-        tone: "good",
-        text: `console reset — cleared ${pg} campaign record(s), ${events} event(s) and ${keys} live key(s)`,
-      });
+      setToast({ tone: "good", text: successText(data) });
       close();
       // The live panels read Redis, but History reads Postgres on its own
-      // slower cadence. Refresh both lanes now so a successful reset does not
-      // leave deleted campaigns visible until the next 30-second history poll
-      // -- fire-and-forget, not awaited: reopening this dialog right after a
-      // reset must not find it still "busy" from a refresh that is slow or
-      // never returns. Either read reports its own failure already.
+      // slower cadence. Refresh both lanes now so a success does not leave
+      // deleted campaigns visible until the next 30-second history poll --
+      // fire-and-forget, not awaited: reopening this dialog right after must
+      // not find it still "busy" from a refresh that is slow or never
+      // returns. Either read reports its own failure already.
       refresh();
       refreshHistory();
     } catch (err) {
       setToast({
         tone: "bad",
         text: err.name === "AbortError"
-          ? "reset timed out waiting for the server"
+          ? `${word} timed out waiting for the server`
           : `could not reach the server: ${err.message}`,
       });
     } finally {
@@ -304,7 +297,8 @@ export function ResetControl({ className = "icon-btn", label = "Reset console" }
         type="button"
         className={className}
         onClick={openDialog}
-        title="Reset the console to a clean slate"
+        disabled={disableTriggerWhileBusy ? busy : undefined}
+        title={triggerTitle}
       >
         {label}
       </button>
@@ -316,24 +310,13 @@ export function ResetControl({ className = "icon-btn", label = "Reset console" }
             className="modal-card"
             role="dialog"
             aria-modal="true"
-            aria-labelledby="reset-dialog-title"
+            aria-labelledby={dialogId}
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <h2 id="reset-dialog-title">Reset the console?</h2>
-            <p>
-              This clears the campaign history in Postgres and the live telemetry
-              in Redis — Overview, Events, Campaigns and History all go back to
-              empty.
-            </p>
-            <p className="modal-note">
-              To lift a current policy key, use Delete policy on the Policy page.
-            </p>
-            <p className="modal-note">
-              Active policy blocks are left running; they expire on their own.
-              This cannot be undone.
-            </p>
+            <h2 id={dialogId}>{heading}</h2>
+            {body}
             <label className="modal-label">
-              Type <b>reset</b> to confirm
+              Type <b>{word}</b> to confirm
               <input
                 type="text"
                 value={confirm}
@@ -341,9 +324,9 @@ export function ResetControl({ className = "icon-btn", label = "Reset console" }
                 disabled={busy}
                 onChange={(e) => setConfirm(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && confirm === "reset" && !busy) run();
+                  if (e.key === "Enter" && confirm === word && !busy) run();
                 }}
-                placeholder="reset"
+                placeholder={word}
               />
             </label>
             <div className="modal-actions">
@@ -354,9 +337,9 @@ export function ResetControl({ className = "icon-btn", label = "Reset console" }
                 type="button"
                 className="act danger"
                 onClick={run}
-                disabled={busy || confirm !== "reset"}
+                disabled={busy || confirm !== word}
               >
-                {busy ? "Resetting…" : "Reset console"}
+                {busy ? busyLabel : confirmLabel}
               </button>
             </div>
           </div>
@@ -368,158 +351,87 @@ export function ResetControl({ className = "icon-btn", label = "Reset console" }
   );
 }
 
+/** Reset the console to a clean slate. */
+export function ResetControl({ className = "icon-btn", label = "Reset console" }) {
+  return (
+    <TypedConfirmControl
+      className={className}
+      label={label}
+      word="reset"
+      endpoint="/api/admin/reset"
+      dialogId="reset-dialog-title"
+      heading="Reset the console?"
+      triggerTitle="Reset the console to a clean slate"
+      confirmLabel="Reset console"
+      busyLabel="Resetting…"
+      body={
+        <>
+          <p>
+            This clears the campaign history in Postgres and the live telemetry
+            in Redis — Overview, Events, Campaigns and History all go back to
+            empty.
+          </p>
+          <p className="modal-note">
+            To lift a current policy key, use Delete policy on the Policy page.
+          </p>
+          <p className="modal-note">
+            Active policy blocks are left running; they expire on their own.
+            This cannot be undone.
+          </p>
+        </>
+      }
+      successText={(data) => {
+        const pg = data.postgres?.ok
+          ? Object.values(data.postgres.cleared || {}).reduce((a, b) => a + b, 0)
+          : 0;
+        const keys = data.redis?.ok ? data.redis.removed : 0;
+        const events = data.redis?.ok ? data.redis.trimmed : 0;
+        return `console reset — cleared ${pg} campaign record(s), ${events} event(s) and ${keys} live key(s)`;
+      }}
+    />
+  );
+}
+
 /**
- * Clear campaigns -- narrower than Reset console above: only the agent's
- * groupings (campaigns + the feedback learned from them), never raw events
- * and never active policy. See app/api/admin/clear-campaigns for exactly
- * what is and is not touched, and why clearing here can't be undone by
- * whatever evidence the control plane was mid-cycle on when this runs.
+ * Clear campaigns -- narrower than Reset console: only the agent's groupings
+ * (campaigns + the feedback learned from them), never raw events and never
+ * active policy. See app/api/admin/clear-campaigns for exactly what is and is
+ * not touched, and why clearing here can't be undone by whatever evidence the
+ * control plane was mid-cycle on when this runs.
  */
 export function ClearCampaignsControl({ className = "icon-btn", label = "Clear campaigns" }) {
-  const { refresh, refreshHistory, setToast } = useLive();
-  const [open, setOpen] = useState(false);
-  const [confirm, setConfirm] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    if (!open) return undefined;
-    function escape(event) {
-      if (event.key === "Escape" && !busy) close();
-    }
-    document.addEventListener("keydown", escape);
-    return () => document.removeEventListener("keydown", escape);
-  }, [open, busy]);
-
-  function openDialog() {
-    // See ResetControl's openDialog: clears a stuck busy flag left by a
-    // previous run() rather than reopening the dialog pre-disabled.
-    setBusy(false);
-    setConfirm("");
-    setOpen(true);
-  }
-
-  function close() {
-    setOpen(false);
-    setConfirm("");
-  }
-
-  async function run() {
-    setBusy(true);
-    try {
-      // Bounded so a slow or wedged Postgres cannot pin this request open
-      // indefinitely -- see ResetControl's run() for the same guard.
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 15_000);
-      let res;
-      try {
-        res = await fetch("/api/admin/clear-campaigns", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ confirm: "clear" }),
-          signal: controller.signal,
-        });
-      } finally {
-        clearTimeout(timeout);
-      }
-      const data = await res.json();
-      if (!res.ok || !data.ok) {
-        setToast({ tone: "bad", text: `clear failed: ${data.error || res.status}` });
-        return;
-      }
-      setToast({
-        tone: "good",
-        text:
-          `cleared ${data.cleared} record(s) — ${data.campaigns} campaign(s), ` +
-          `${data.feedback} feedback entr${data.feedback === 1 ? "y" : "ies"}. ` +
-          "Events and active policy are untouched.",
-      });
-      close();
-      // History reads Postgres on its own slower cadence -- refresh both
-      // lanes now so this doesn't leave cleared campaigns visible until the
-      // next 30-second history poll. Fire-and-forget: reopening this dialog
-      // right after clearing must not find it still "busy" from a refresh
-      // that is slow or never returns. Either read reports its own failure.
-      refresh();
-      refreshHistory();
-    } catch (err) {
-      setToast({
-        tone: "bad",
-        text: err.name === "AbortError"
-          ? "clear timed out waiting for the server"
-          : `could not reach the server: ${err.message}`,
-      });
-    } finally {
-      setBusy(false);
-    }
-  }
-
   return (
-    <>
-      <button
-        type="button"
-        className={className}
-        onClick={openDialog}
-        disabled={busy}
-        title="Clear campaigns -- keeps raw events and active policy"
-      >
-        {label}
-      </button>
-
-      {open && typeof document !== "undefined"
-        ? createPortal(
-        <div className="modal-overlay" onMouseDown={() => !busy && close()}>
-          <div
-            className="modal-card"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="clear-campaigns-dialog-title"
-            onMouseDown={(e) => e.stopPropagation()}
-          >
-            <h2 id="clear-campaigns-dialog-title">Clear campaigns?</h2>
-            <p>
-              Deletes every campaign and the feedback learned from them, in Postgres
-              and Redis. Campaigns rebuild from new evidence as the control plane
-              keeps running.
-            </p>
-            <p className="modal-note">
-              Raw events on the Events page and active policy on the Policy page are
-              not touched. A policy that named a cleared campaign keeps enforcing;
-              its campaign link just won't resolve to anything anymore.
-            </p>
-            <p className="modal-note">This cannot be undone.</p>
-            <label className="modal-label">
-              Type <b>clear</b> to confirm
-              <input
-                type="text"
-                value={confirm}
-                autoFocus
-                disabled={busy}
-                onChange={(e) => setConfirm(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && confirm === "clear" && !busy) run();
-                }}
-                placeholder="clear"
-              />
-            </label>
-            <div className="modal-actions">
-              <button type="button" className="act" onClick={close} disabled={busy}>
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="act danger"
-                onClick={run}
-                disabled={busy || confirm !== "clear"}
-              >
-                {busy ? "Clearing…" : "Clear campaigns"}
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body,
-      )
-        : null}
-    </>
+    <TypedConfirmControl
+      className={className}
+      label={label}
+      word="clear"
+      endpoint="/api/admin/clear-campaigns"
+      dialogId="clear-campaigns-dialog-title"
+      heading="Clear campaigns?"
+      triggerTitle="Clear campaigns -- keeps raw events and active policy"
+      confirmLabel="Clear campaigns"
+      busyLabel="Clearing…"
+      disableTriggerWhileBusy
+      body={
+        <>
+          <p>
+            Deletes every campaign and the feedback learned from them, in Postgres
+            and Redis. Campaigns rebuild from new evidence as the control plane
+            keeps running.
+          </p>
+          <p className="modal-note">
+            Raw events on the Events page and active policy on the Policy page are
+            not touched. A policy that named a cleared campaign keeps enforcing;
+            its campaign link just won't resolve to anything anymore.
+          </p>
+          <p className="modal-note">This cannot be undone.</p>
+        </>
+      }
+      successText={(data) =>
+        `cleared ${data.cleared} record(s) — ${data.campaigns} campaign(s), ` +
+        `${data.feedback} feedback entr${data.feedback === 1 ? "y" : "ies"}. ` +
+        "Events and active policy are untouched."}
+    />
   );
 }
 

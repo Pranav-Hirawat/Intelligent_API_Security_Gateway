@@ -2,7 +2,7 @@ import { getRedis } from "@/lib/redis";
 import { require as requireRole } from "@/lib/auth";
 import { isPrivateIP, lookupGeo } from "@/lib/geo";
 import { parseEventMessage } from "@/lib/telemetry";
-import { readCampaigns, readPolicyFor } from "@/lib/plane";
+import { parseJson, readCampaigns, readPolicyFor } from "@/lib/plane";
 import { canonicalSignals } from "@/app/ui/format";
 
 export const dynamic = "force-dynamic";
@@ -101,20 +101,12 @@ export async function GET(request, { params }) {
         // "12 requests ever".
         scanned: entries?.length || 0,
       },
-      latest: latestRaw ? safeParse(latestRaw) : null,
+      latest: latestRaw ? parseJson(latestRaw) : null,
     });
   } catch (err) {
     return Response.json(
       { redis: false, error: err.message, ip, events: [], campaigns: [], policy: null },
       { status: 200 },
     );
-  }
-}
-
-function safeParse(raw) {
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
   }
 }
