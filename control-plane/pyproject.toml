@@ -25,3 +25,8 @@ testpaths = ["tests"]
 # Keep both the control-plane package and repository root importable to tests
 # without relying on editable-install path handling.
 pythonpath = [".", ".."]
+
+[tool.coverage.report]
+# Interfaces declare methods with no body. Counting those lines as untested
+# lowers the figure without pointing at anything a test could check.
+exclude_also = ["class .*\\(Protocol\\):"]

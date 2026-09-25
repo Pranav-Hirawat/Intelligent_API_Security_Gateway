@@ -99,3 +99,51 @@ def test_round_trips_through_stream_fields():
     back = Evidence.from_stream_fields("1-1", ev.to_stream_fields())
     assert back.ip == ev.ip
     assert back.details["failedLogins"] == 12
+
+
+def block(headline, **fields):
+    rows = "\n".join(f"\t\t\t{name.replace('_', ' '):<15}: {value}" for name, value in fields.items())
+    return f"""
+\t\t\t========================================
+\t\t\tSECURITY ALERT: {headline}
+\t\t\t----------------------------------------
+{rows}
+\t\t\t========================================
+""".splitlines()
+
+
+def test_an_unknown_severity_is_read_as_medium():
+    (ev,) = parse(block("SQL INJECTION DETECTED", IP_Address="203.0.113.5", Severity="CATASTROPHIC"))
+    assert ev.severity == "medium"
+
+
+def test_an_unreadable_count_is_dropped_not_fatal():
+    (ev,) = parse(block("API FLOOD DETECTED", IP_Address="203.0.113.5", Requests="lots"))
+    assert "requestCount" not in ev.details
+
+
+def test_an_alert_without_an_address_or_known_detector_is_skipped():
+    """An address is what a policy would be written for; without one there is
+    nothing to act on, and an unknown headline has no detector to credit."""
+    assert parse(block("SQL INJECTION DETECTED", Severity="HIGH")) == []
+    assert parse(block("SOMETHING NEW DETECTED", IP_Address="203.0.113.5")) == []
+
+
+def test_the_pipe_writes_each_alert_to_the_evidence_stream(monkeypatch, capsys):
+    import io
+
+    from iasg.evidence import ingest
+    from iasg.store.memory import MemoryStore
+
+    store = MemoryStore()
+    monkeypatch.setattr(ingest, "open_store", lambda settings: store)
+    monkeypatch.setattr("sys.stdin", io.StringIO("\n".join(BRUTE_FORCE + FLOOD) + "\n"))
+
+    ingest.main()
+
+    out = capsys.readouterr().out
+    assert "SECURITY ALERT: BRUTE FORCE DETECTED" in out, "the gateway's own output must stay visible"
+    assert "[ingest] -> flood 198.51.100.7 (2 total)" in out
+    store.ensure_group("iasg:events", "check")
+    entries = store.read_group("iasg:events", "check", "c", 10)
+    assert [fields["detector"] for _, fields in entries] == ["bruteforce", "flood"]
