@@ -1,4 +1,5 @@
-import { getPool } from "@/lib/postgres";
+import { truncateTables } from "@/lib/postgres";
+import { scanKeys } from "@/lib/plane";
 import { getRedis } from "@/lib/redis";
 import { require as requireRole } from "@/lib/auth";
 
@@ -73,32 +74,7 @@ const RESET_WATERMARK_KEY = process.env.IASG_RESET_WATERMARK_KEY || "iasg:reset_
 // numbering restarts with the Postgres sequence.
 const REDIS_PATTERNS = ["campaign:*", "feedback:*", "iasg:ip:*"];
 
-async function clearPostgres() {
-  const pool = getPool();
-  if (!pool) return { ok: false, reason: "no durable store (IASG_POSTGRES_URL unset)" };
-
-  const client = await pool.connect();
-  try {
-    const before = {};
-    for (const table of TABLES) {
-      const { rows } = await client.query(`SELECT count(*)::int AS n FROM ${table}`);
-      before[table] = rows[0].n;
-    }
-    // One transaction: a half-cleared record is worse than either state.
-    await client.query("BEGIN");
-    await client.query(`TRUNCATE ${TABLES.join(", ")}`);
-    // Non-fatal: the sequence only exists once the control plane has run, and a
-    // reset before it ever has is still a valid reset.
-    await client.query("SELECT setval('campaign_id_seq', 1, false)").catch(() => {});
-    await client.query("COMMIT");
-    return { ok: true, cleared: before };
-  } catch (err) {
-    await client.query("ROLLBACK").catch(() => {});
-    return { ok: false, reason: err.message };
-  } finally {
-    client.release();
-  }
-}
+const clearPostgres = () => truncateTables(TABLES);
 
 async function clearRedis() {
   let redis;
@@ -119,12 +95,7 @@ async function clearRedis() {
     }
 
     const keys = [...REDIS_KEYS];
-    for (const pattern of REDIS_PATTERNS) {
-      for await (const found of redis.scanIterator({ MATCH: pattern, COUNT: 500 })) {
-        if (Array.isArray(found)) keys.push(...found);
-        else keys.push(found);
-      }
-    }
+    for (const pattern of REDIS_PATTERNS) keys.push(...(await scanKeys(redis, pattern)));
     // DEL ignores keys that are not there, so no need to filter first.
     const removed = keys.length ? await redis.del(keys) : 0;
     return { ok: true, removed, trimmed };

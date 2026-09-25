@@ -138,6 +138,13 @@ COLUMNS = (
 )
 
 
+# The same column order for reading and writing baselines.
+BASELINE_COLUMNS = (
+    "method, route_template, sample_count, statistic, mad, derived_threshold,"
+    " observed_rate, last_update, last_threshold_change, version, ready, samples"
+)
+
+
 class Database:
     """A live Postgres connection, plus the two things stored in it."""
 
@@ -179,16 +186,6 @@ class PostgresCampaigns:
                 f"SELECT {', '.join(COLUMNS)} FROM campaigns"
                 " WHERE last_seen >= %s ORDER BY last_seen DESC",
                 (cutoff,),
-            )
-            return [_to_campaign(row) for row in cur.fetchall()]
-
-    def history(self, limit: int = 200) -> list[Campaign]:
-        """Everything ever recorded, newest first. For reporting, not deciding."""
-        with self._conn.cursor() as cur:
-            cur.execute(
-                f"SELECT {', '.join(COLUMNS)} FROM campaigns"
-                " ORDER BY last_seen DESC LIMIT %s",
-                (limit,),
             )
             return [_to_campaign(row) for row in cur.fetchall()]
 
@@ -311,9 +308,7 @@ class PostgresAdaptive:
     def get_baseline(self, key: EndpointKey) -> BaselineSummary | None:
         with self._conn.cursor() as cur:
             cur.execute(
-                "SELECT method, route_template, sample_count, statistic, mad,"
-                " derived_threshold, observed_rate, last_update, last_threshold_change,"
-                " version, ready, samples FROM endpoint_baselines"
+                f"SELECT {BASELINE_COLUMNS} FROM endpoint_baselines"
                 " WHERE method = %s AND route_template = %s",
                 (key.method, key.route_template),
             )
@@ -323,9 +318,7 @@ class PostgresAdaptive:
     def save_baseline(self, summary: BaselineSummary) -> None:
         with self._conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO endpoint_baselines"
-                " (method, route_template, sample_count, statistic, mad, derived_threshold,"
-                " observed_rate, last_update, last_threshold_change, version, ready, samples)"
+                f"INSERT INTO endpoint_baselines ({BASELINE_COLUMNS})"
                 " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb)"
                 " ON CONFLICT (method, route_template) DO UPDATE SET"
                 " sample_count=EXCLUDED.sample_count, statistic=EXCLUDED.statistic,"
@@ -345,10 +338,7 @@ class PostgresAdaptive:
     def list_baselines(self) -> list[BaselineSummary]:
         with self._conn.cursor() as cur:
             cur.execute(
-                "SELECT method, route_template, sample_count, statistic, mad,"
-                " derived_threshold, observed_rate, last_update, last_threshold_change,"
-                " version, ready, samples FROM endpoint_baselines"
-                " ORDER BY method, route_template"
+                f"SELECT {BASELINE_COLUMNS} FROM endpoint_baselines ORDER BY method, route_template"
             )
             return [_to_baseline(row) for row in cur.fetchall()]
 
@@ -376,11 +366,7 @@ class PostgresAdaptive:
                     recommendation.updated_at,
                 ),
             )
-            cur.execute(
-                "INSERT INTO policy_audit (policy_id,event,actor,details)"
-                " VALUES (%s,%s,%s,'{}'::jsonb)",
-                (decision.policy_id, recommendation.status, decision.issued_by),
-            )
+            _audit(cur, decision.policy_id, recommendation.status, decision.issued_by)
 
     def approved_recommendations(self) -> list[Recommendation]:
         with self._conn.cursor() as cur:
@@ -397,11 +383,7 @@ class PostgresAdaptive:
                 "UPDATE policy_recommendations SET status=%s, updated_at=%s WHERE policy_id=%s",
                 (status, now, policy_id),
             )
-            cur.execute(
-                "INSERT INTO policy_audit (policy_id,event,actor,details)"
-                " VALUES (%s,%s,%s,%s::jsonb)",
-                (policy_id, status, actor, json.dumps(details or {})),
-            )
+            _audit(cur, policy_id, status, actor, details)
 
     def last_for_scope(self, decision: PolicyDecision) -> Recommendation | None:
         with self._conn.cursor() as cur:
@@ -423,11 +405,7 @@ class PostgresAdaptive:
             )
             ids = [row[0] for row in cur.fetchall()]
             for policy_id in ids:
-                cur.execute(
-                    "INSERT INTO policy_audit (policy_id,event,actor,details)"
-                    " VALUES (%s,'expired','control-plane','{}'::jsonb)",
-                    (policy_id,),
-                )
+                _audit(cur, policy_id, "expired", "control-plane")
         return len(ids)
 
 
@@ -455,6 +433,13 @@ def open_database(settings) -> Database | None:
 
     print("[postgres] campaigns, adaptive settings, baselines, and policy audit are durable")
     return db
+
+
+def _audit(cur, policy_id: str, event: str, actor: str, details: dict | None = None) -> None:
+    cur.execute(
+        "INSERT INTO policy_audit (policy_id,event,actor,details) VALUES (%s,%s,%s,%s::jsonb)",
+        (policy_id, event, actor, json.dumps(details or {})),
+    )
 
 
 def _to_row(c: Campaign) -> tuple:

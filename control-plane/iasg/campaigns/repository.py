@@ -10,10 +10,11 @@ investigation instead of a script starting over every 30 seconds.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta, timezone
+from dataclasses import asdict, fields
+from datetime import timedelta
 
 from iasg.adaptive.config import AdaptiveConfig
-from iasg.models import CAMPAIGN_MULTI_STAGE, ENFORCEMENT_ACTIONS, Campaign
+from iasg.models import CAMPAIGN_MULTI_STAGE, ENFORCEMENT_ACTIONS, Campaign, parse_timestamp
 from iasg.store.base import Store
 
 # How much IP overlap counts as "the same campaign".
@@ -351,63 +352,23 @@ def _worst(a: str, b: str) -> str:
     return a if order.get(a, 0) >= order.get(b, 0) else b
 
 
+_REQUIRED = ("campaign_id", "type", "confidence", "ips", "reason", "severity")
+
+
 def _to_json(c: Campaign) -> str:
-    return json.dumps(
-        {
-            "campaign_id": c.campaign_id,
-            "type": c.type,
-            "confidence": c.confidence,
-            "ips": c.ips,
-            "reason": c.reason,
-            "severity": c.severity,
-            "first_seen": c.first_seen.isoformat(),
-            "last_seen": c.last_seen.isoformat(),
-            "event_count": c.event_count,
-            "status": c.status,
-            "quiet_cycles": c.quiet_cycles,
-            "last_action": c.last_action,
-            "outcome": c.outcome,
-            "rotations": c.rotations,
-            "persistence": c.persistence,
-            "alerted": c.alerted,
-            "explanation": c.explanation,
-            "assessment": c.assessment,
-            "signature": c.signature,
-            "stages": c.stages,
-        }
-    )
+    d = asdict(c)
+    d["first_seen"], d["last_seen"] = c.first_seen.isoformat(), c.last_seen.isoformat()
+    return json.dumps(d)
 
 
 def _from_json(raw: str) -> Campaign:
     d = json.loads(raw)
-    return Campaign(
-        campaign_id=d["campaign_id"],
-        type=d["type"],
-        confidence=d["confidence"],
-        ips=d["ips"],
-        reason=d["reason"],
-        severity=d["severity"],
-        first_seen=_parse(d.get("first_seen")),
-        last_seen=_parse(d.get("last_seen")),
-        event_count=d.get("event_count", 0),
-        status=d.get("status", "active"),
-        quiet_cycles=d.get("quiet_cycles", 0),
-        last_action=d.get("last_action", ""),
-        outcome=d.get("outcome", ""),
-        rotations=d.get("rotations", 0),
-        persistence=d.get("persistence", 0),
-        alerted=d.get("alerted", False),
-        explanation=d.get("explanation", ""),
-        assessment=d.get("assessment", ""),
-        signature=d.get("signature", {}),
-        stages=d.get("stages", []),
-    )
-
-
-def _parse(raw: str | None) -> datetime:
-    if not raw:
-        return datetime.now(timezone.utc)
-    try:
-        return datetime.fromisoformat(raw)
-    except ValueError:
-        return datetime.now(timezone.utc)
+    known = {f.name for f in fields(Campaign)}
+    # A missing required key raises, as it always has; every other field falls
+    # back to the dataclass default, so campaigns stored before a field existed
+    # still load.
+    data = {k: v for k, v in d.items() if k in known}
+    data.update({k: d[k] for k in _REQUIRED})
+    data["first_seen"] = parse_timestamp(d.get("first_seen") or "")
+    data["last_seen"] = parse_timestamp(d.get("last_seen") or "")
+    return Campaign(**data)

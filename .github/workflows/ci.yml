@@ -23,6 +23,21 @@ jobs:
   gateway:
     name: Go gateway
     runs-on: ubuntu-latest
+
+    # The settings watcher, the telemetry store and the policy store are what
+    # talk to Redis, and a fake cannot tell us they write what the console and
+    # control plane read. Each test package uses its own database number.
+    services:
+      redis:
+        image: redis:8.6
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
     steps:
       - uses: actions/checkout@v5
 
@@ -38,9 +53,10 @@ jobs:
 
       - name: Test
         working-directory: gateway
-        # No service containers: the suite stands up its own fixtures and the
-        # Redis-backed tests tolerate an absent server, which is the same
-        # fail-safe behaviour the gateway relies on in production.
+        # Without this the Redis-backed tests skip. Every other test stands up
+        # its own fixtures and still passes with no Redis at all.
+        env:
+          IASG_TEST_REDIS_ADDR: localhost:6379
         run: go test ./...
 
   control-plane:
@@ -61,6 +77,15 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      redis:
+        image: redis:8.6
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
 
     steps:
       - uses: actions/checkout@v5
@@ -81,11 +106,40 @@ jobs:
           # least likely to be run by hand, which is the argument for running
           # them here. The schema creates itself on connect.
           IASG_TEST_POSTGRES_URL: postgresql://iasg_user:changeme@localhost:5432/iasg_test
+          # The store contract runs MemoryStore and RedisStore through the same
+          # properties; without this only the in-memory half runs.
+          IASG_TEST_REDIS_URL: redis://localhost:6379/13
         run: python -m pytest -q
 
   dashboard:
     name: Dashboard
     runs-on: ubuntu-latest
+
+    # The API route tests call the real handlers against these.
+    services:
+      redis:
+        image: redis:8.6
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      postgres:
+        image: postgres:18.2
+        env:
+          POSTGRES_USER: iasg_user
+          POSTGRES_PASSWORD: changeme
+          POSTGRES_DB: iasg_dash
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U iasg_user -d iasg_dash"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - uses: actions/checkout@v5
 
@@ -101,6 +155,9 @@ jobs:
 
       - name: Test
         working-directory: gateway-dashboard
+        env:
+          IASG_TEST_DASHBOARD_REDIS: localhost:6379
+          IASG_TEST_POSTGRES_URL: postgresql://iasg_user:changeme@localhost:5432/iasg_dash
         run: npm test
 
       - name: Build

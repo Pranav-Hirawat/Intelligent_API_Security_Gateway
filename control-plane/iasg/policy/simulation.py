@@ -16,7 +16,6 @@ for -- and says so when it is guessing.
 
 from __future__ import annotations
 
-import ipaddress
 import json
 from dataclasses import replace
 
@@ -29,6 +28,7 @@ from iasg.models import (
     Evidence,
     PolicyDecision,
 )
+from iasg.policy.writer import parse_networks, within
 from iasg.store.base import Store
 
 
@@ -36,8 +36,8 @@ class Simulator:
     def __init__(self, store: Store, settings: Settings) -> None:
         self._store = store
         self._settings = settings
-        self._allowlist = _networks(settings.allowlist)
-        self._shared = _networks(settings.shared_ranges)
+        self._allowlist = parse_networks(settings.allowlist)
+        self._shared = parse_networks(settings.shared_ranges)
         self._adaptive = settings.adaptive
 
     def apply_config(self, config) -> None:
@@ -69,13 +69,13 @@ class Simulator:
         for decision in decisions:
             # 1. Declared ours. Not negotiable, and not overridable either --
             # an operator who listed a range here has already answered.
-            if decision.action != ACTION_ALLOW and _within(decision.ip, self._allowlist):
+            if decision.action != ACTION_ALLOW and within(decision.ip, self._allowlist):
                 notes.append(f"[sim] {decision.ip} allowlisted, no policy written")
                 continue
 
             # 2. Declared shared. Real people are behind this address, so it
             # can be slowed but never cut off.
-            if _within(decision.ip, self._shared):
+            if within(decision.ip, self._shared):
                 decision, note = _soften(
                     decision,
                     ACTION_THROTTLE,
@@ -174,27 +174,6 @@ def _clients_per_address(evidence: list[Evidence]) -> dict[str, int]:
         if e.ip and e.user_agent:
             agents.setdefault(e.ip, set()).add(e.user_agent)
     return {ip: len(seen) for ip, seen in agents.items()}
-
-
-def _networks(entries: tuple[str, ...]) -> list:
-    """Parse config entries into networks, ignoring anything unparseable."""
-    nets = []
-    for entry in entries:
-        try:
-            nets.append(ipaddress.ip_network(entry, strict=False))
-        except ValueError:
-            continue
-    return nets
-
-
-def _within(ip: str, networks: list) -> bool:
-    if not networks:
-        return False
-    try:
-        addr = ipaddress.ip_address(ip)
-    except ValueError:
-        return False
-    return any(addr in net for net in networks)
 
 
 def _rung(action: str) -> int:

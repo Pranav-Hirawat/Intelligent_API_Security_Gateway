@@ -7,12 +7,14 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/Adnan-Safdari/Intelligent_API_Security_Gateway/internal/config"
 )
 
 const sqliMarker = "SQL INJECTION"
 
 func sqliHandler() http.Handler {
-	return NewSQLiDetector(DefaultSQLiDetectorConfig()).Middleware(okBackend())
+	return NewSQLiDetector(config.AttackDetectionConfig{Enabled: true}).Middleware(okBackend())
 }
 
 func TestSQLiIgnoresCleanBody(t *testing.T) {
@@ -43,7 +45,7 @@ func TestSQLiDetectsSignatureInBody(t *testing.T) {
 
 func TestSQLiCommentOnlyIsLowConfidenceEvidence(t *testing.T) {
 	const ip = "203.0.113.56"
-	detector := NewSQLiDetector(DefaultSQLiDetectorConfig())
+	detector := NewSQLiDetector(config.AttackDetectionConfig{Enabled: true})
 	handler := detector.Middleware(okBackend())
 
 	out := captureAlerts(t, func() {
@@ -71,7 +73,7 @@ func TestSQLiMatchingIsCaseInsensitive(t *testing.T) {
 
 func TestSQLiDetectsCommentObfuscatedKeywords(t *testing.T) {
 	const ip = "203.0.113.57"
-	detector := NewSQLiDetector(DefaultSQLiDetectorConfig())
+	detector := NewSQLiDetector(config.AttackDetectionConfig{Enabled: true})
 	handler := detector.Middleware(okBackend())
 
 	for _, payload := range []string{
@@ -108,7 +110,7 @@ func TestSQLiRestoresBodyForBackend(t *testing.T) {
 	const payload = `{"email":"' OR 1=1--","password":"x"}`
 
 	var seen string
-	handler := NewSQLiDetector(DefaultSQLiDetectorConfig()).Middleware(
+	handler := NewSQLiDetector(config.AttackDetectionConfig{Enabled: true}).Middleware(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			buf := make([]byte, len(payload))
 			n, _ := r.Body.Read(buf)
@@ -126,7 +128,7 @@ func TestSQLiRestoresBodyForBackend(t *testing.T) {
 }
 
 func TestSQLiDisabledInspectsNothing(t *testing.T) {
-	handler := NewSQLiDetector(SQLiDetectorConfig{Enabled: false}).Middleware(okBackend())
+	handler := NewSQLiDetector(config.AttackDetectionConfig{Enabled: false}).Middleware(okBackend())
 
 	out := captureAlerts(t, func() {
 		probe(handler, http.MethodPost, "/api/login", "203.0.113.5", `{"email":"' OR 1=1--"}`)
@@ -138,7 +140,7 @@ func TestSQLiDisabledInspectsNothing(t *testing.T) {
 }
 
 func TestSQLiCustomPatternsReplaceDefaults(t *testing.T) {
-	handler := NewSQLiDetector(SQLiDetectorConfig{
+	handler := NewSQLiDetector(config.AttackDetectionConfig{
 		Enabled:     true,
 		SQLPatterns: []string{"DROP TABLE"},
 	}).Middleware(okBackend())
@@ -159,7 +161,7 @@ func TestSQLiCustomPatternsReplaceDefaults(t *testing.T) {
 }
 
 func TestSQLiEmptyPatternsFallBackToDefaults(t *testing.T) {
-	handler := NewSQLiDetector(SQLiDetectorConfig{Enabled: true}).Middleware(okBackend())
+	handler := NewSQLiDetector(config.AttackDetectionConfig{Enabled: true}).Middleware(okBackend())
 
 	out := captureAlerts(t, func() {
 		probe(handler, http.MethodPost, "/api/x", "203.0.113.5", `{"q":"' OR 1=1"}`)
@@ -184,7 +186,7 @@ func TestSQLiInspectsQueryString(t *testing.T) {
 
 func TestSQLiProductSearchEvidenceUsesDecodedQueryValues(t *testing.T) {
 	const ip = "203.0.113.55"
-	detector := NewSQLiDetector(DefaultSQLiDetectorConfig())
+	detector := NewSQLiDetector(config.AttackDetectionConfig{Enabled: true})
 	backendReached := 0
 	handler := detector.Middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		backendReached++

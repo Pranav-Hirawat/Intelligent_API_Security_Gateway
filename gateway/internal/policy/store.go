@@ -15,6 +15,7 @@
 package policy
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"log"
@@ -384,16 +385,10 @@ func collectAt(into map[string]Decision, keys []string, values []any, ttls []tim
 			log.Printf("[policy] ignoring unparseable key %s: %v", keys[i], err)
 			continue
 		}
-		if d.Source == "" {
-			d.Source = "agent"
-		}
+		d.Source = cmp.Or(d.Source, "agent")
 		if d.EndpointScope != nil {
-			if d.Method == "" {
-				d.Method = d.EndpointScope.Method
-			}
-			if d.Route == "" {
-				d.Route = d.EndpointScope.RouteTemplate
-			}
+			d.Method = cmp.Or(d.Method, d.EndpointScope.Method)
+			d.Route = cmp.Or(d.Route, d.EndpointScope.RouteTemplate)
 		}
 		d.ExpiresAt = observed.Add(ttls[i])
 		d.cacheUntil = cacheUntil
@@ -401,9 +396,7 @@ func collectAt(into map[string]Decision, keys []string, values []any, ttls []tim
 
 		explicitTarget := d.TargetIdentity != ""
 		target := d.TargetIdentity
-		if target == "" {
-			target = strings.TrimPrefix(keys[i], prefix)
-		}
+		target = cmp.Or(target, strings.TrimPrefix(keys[i], prefix))
 		key := target
 		if explicitTarget {
 			key = indexKey(target, d.Method, d.Route)

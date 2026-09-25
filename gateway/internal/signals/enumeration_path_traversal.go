@@ -1,12 +1,10 @@
 package signals
 
 import (
-	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
 	"sync/atomic"
-	"time"
 
 	"github.com/Adnan-Safdari/Intelligent_API_Security_Gateway/internal/config"
 	"github.com/Adnan-Safdari/Intelligent_API_Security_Gateway/internal/netutil"
@@ -44,8 +42,8 @@ type travTunables struct {
 }
 
 type TraversalEnumDetector struct {
-	tun  atomic.Pointer[travTunables]
-	last *lastEvidenceStore
+	tun atomic.Pointer[travTunables]
+	*lastEvidenceStore
 }
 
 func (ted *TraversalEnumDetector) settings() travTunables { return *ted.tun.Load() }
@@ -68,12 +66,10 @@ func (ted *TraversalEnumDetector) Apply(cfg config.EnumerationConfig) {
 }
 
 func NewTraversalEnumDetector(cfg config.EnumerationConfig) *TraversalEnumDetector {
-	ted := &TraversalEnumDetector{last: newLastEvidenceStore(lastEvidenceTTL)}
+	ted := &TraversalEnumDetector{lastEvidenceStore: newLastEvidenceStore(SignalTraversal)}
 	ted.Apply(cfg)
 	return ted
 }
-
-func (ted *TraversalEnumDetector) Name() string { return SignalTraversal }
 
 func (ted *TraversalEnumDetector) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -88,7 +84,7 @@ func (ted *TraversalEnumDetector) Middleware(next http.Handler) http.Handler {
 		traversalHits := findPatternHits(path+" "+query, tun.traversalPatterns)
 		enumHits := findPatternHits(path, tun.enumerationPatterns)
 		ev := ted.evidenceFrom(traversalHits, enumHits)
-		ted.last.Put(ip, r.Header.Get(RequestIDHeader), ev)
+		ted.put(ip, r.Header.Get(RequestIDHeader), ev)
 
 		if len(traversalHits) > 0 {
 			ted.logAlert(ip, r, "PATH TRAVERSAL", "matched Path Traversal signature in URL or query parameters")
@@ -120,18 +116,6 @@ func decodedURLForms(values ...string) string {
 		}
 	}
 	return strings.Join(forms, " ")
-}
-
-// Metrics returns the latest traversal/enumeration evidence for an IP, from
-// whichever request produced it.
-func (ted *TraversalEnumDetector) Metrics(ip string) Evidence {
-	return ted.last.Get(ip, SignalTraversal)
-}
-
-// MetricsFor returns the evidence for one request, and nothing when that
-// request never reached this detector.
-func (ted *TraversalEnumDetector) MetricsFor(ip, requestID string) Evidence {
-	return ted.last.GetFor(ip, requestID, SignalTraversal)
 }
 
 func (ted *TraversalEnumDetector) evidenceFrom(traversalHits, enumHits []string) Evidence {
@@ -179,25 +163,5 @@ func findPatternHits(target string, patterns []string) []string {
 }
 
 func (ted *TraversalEnumDetector) logAlert(ip string, r *http.Request, attackType string, details string) {
-	fmt.Printf(`
-		========================================
-		SECURITY ALERT: %s DETECTED
-		----------------------------------------
-		IP Address     : %s
-		Method         : %s
-		Endpoint       : %s
-		User-Agent     : %s
-		Details        : %s
-		Timestamp      : %s
-		ACTION         : DETECTED (ALLOWING REQUEST)
-		========================================
-		`,
-		attackType,
-		ip,
-		r.Method,
-		r.URL.Path,
-		r.Header.Get("User-Agent"),
-		details,
-		time.Now().Format(time.RFC3339),
-	)
+	printAlert(attackType+" DETECTED", "Details", details, ip, r)
 }

@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/Adnan-Safdari/Intelligent_API_Security_Gateway/internal/netutil"
 )
@@ -33,8 +32,8 @@ func serve(e *Enforcer, ip string, n int) map[int]int {
 
 // Every address, not just the ones under a policy.
 func TestBaselineAppliesToTrafficWithNoPolicy(t *testing.T) {
-	e := NewEnforcer(fixed{}, false, 0).WithLimiter(NewLimiter())
-	e.ApplyAll(false, 0, baseline(t, 5))
+	e := NewEnforcer(fixed{}, false).WithQuotaLimiter(newWindowQuota(), 60, 20)
+	e.ApplyAll(false, baseline(t, 5))
 
 	codes := serve(e, "203.0.113.10", 8)
 
@@ -50,9 +49,9 @@ func TestBaselineAppliesToTrafficWithNoPolicy(t *testing.T) {
 func TestAPolicyRateOverridesTheBaseline(t *testing.T) {
 	// Tighter than the baseline.
 	tight := NewEnforcer(
-		fixed{"203.0.113.11": {Action: ActionThrottle, RequestsPerMinute: 2}}, true, 0,
-	).WithLimiter(NewLimiter())
-	tight.ApplyAll(true, 0, baseline(t, 100))
+		fixed{"203.0.113.11": {Action: ActionThrottle, RequestsPerMinute: 2}}, true,
+	).WithQuotaLimiter(newWindowQuota(), 60, 20)
+	tight.ApplyAll(true, baseline(t, 100))
 
 	codes := serve(tight, "203.0.113.11", 6)
 	if codes[http.StatusOK] != 2 {
@@ -62,9 +61,9 @@ func TestAPolicyRateOverridesTheBaseline(t *testing.T) {
 	// Looser than the baseline. The policy still wins: the control plane looked
 	// at this address and said so.
 	loose := NewEnforcer(
-		fixed{"203.0.113.12": {Action: ActionThrottle, RequestsPerMinute: 10}}, true, 0,
-	).WithLimiter(NewLimiter())
-	loose.ApplyAll(true, 0, baseline(t, 3))
+		fixed{"203.0.113.12": {Action: ActionThrottle, RequestsPerMinute: 10}}, true,
+	).WithQuotaLimiter(newWindowQuota(), 60, 20)
+	loose.ApplyAll(true, baseline(t, 3))
 
 	codes = serve(loose, "203.0.113.12", 10)
 	if codes[http.StatusOK] != 10 {
@@ -74,16 +73,17 @@ func TestAPolicyRateOverridesTheBaseline(t *testing.T) {
 
 // A blocked address is refused outright, and never reaches the counter.
 func TestBlockedAddressIsNotRateLimited(t *testing.T) {
+	q := newWindowQuota()
 	e := NewEnforcer(
-		fixed{"203.0.113.13": {Action: ActionTempBlock}}, true, 0,
-	).WithLimiter(NewLimiter())
-	e.ApplyAll(true, 0, baseline(t, 5))
+		fixed{"203.0.113.13": {Action: ActionTempBlock}}, true,
+	).WithQuotaLimiter(q, 60, 20)
+	e.ApplyAll(true, baseline(t, 5))
 
 	codes := serve(e, "203.0.113.13", 8)
 	if codes[http.StatusForbidden] != 8 {
 		t.Errorf("blocked %d of 8 with 403, want all", codes[http.StatusForbidden])
 	}
-	if e.limiter.Size() != 0 {
+	if q.calls != 0 {
 		t.Error("a blocked address was counted by the limiter")
 	}
 }
@@ -91,9 +91,9 @@ func TestBlockedAddressIsNotRateLimited(t *testing.T) {
 // An explicit permissive policy wins over the configured baseline.
 func TestMonitoredAddressIsAllowedNormally(t *testing.T) {
 	e := NewEnforcer(
-		fixed{"203.0.113.14": {Action: ActionMonitor}}, true, 0,
-	).WithLimiter(NewLimiter())
-	e.ApplyAll(true, 0, baseline(t, 3))
+		fixed{"203.0.113.14": {Action: ActionMonitor}}, true,
+	).WithQuotaLimiter(newWindowQuota(), 60, 20)
+	e.ApplyAll(true, baseline(t, 3))
 
 	codes := serve(e, "203.0.113.14", 6)
 	if codes[http.StatusOK] != 6 {
@@ -102,8 +102,8 @@ func TestMonitoredAddressIsAllowedNormally(t *testing.T) {
 }
 
 func TestExemptAddressesSkipTheBaseline(t *testing.T) {
-	e := NewEnforcer(fixed{}, false, 0).WithLimiter(NewLimiter())
-	e.ApplyAll(false, 0, baseline(t, 2, "127.0.0.0/8", "10.0.0.0/8"))
+	e := NewEnforcer(fixed{}, false).WithQuotaLimiter(newWindowQuota(), 60, 20)
+	e.ApplyAll(false, baseline(t, 2, "127.0.0.0/8", "10.0.0.0/8"))
 
 	for _, ip := range []string{"127.0.0.1", "10.1.2.3"} {
 		codes := serve(e, ip, 10)
@@ -122,14 +122,15 @@ func TestExemptAddressesSkipTheBaseline(t *testing.T) {
 // Off by default: no baseline means the gateway refuses nothing on rate alone,
 // which is how it behaved before this existed.
 func TestNoBaselineRefusesNothing(t *testing.T) {
-	e := NewEnforcer(fixed{}, false, 0).WithLimiter(NewLimiter())
-	e.ApplyAll(false, 0, Baseline{})
+	q := newWindowQuota()
+	e := NewEnforcer(fixed{}, false).WithQuotaLimiter(q, 60, 20)
+	e.ApplyAll(false, Baseline{})
 
 	codes := serve(e, "203.0.113.16", 200)
 	if codes[http.StatusOK] != 200 {
 		t.Errorf("allowed %d of 200, want all when no baseline is set", codes[http.StatusOK])
 	}
-	if e.limiter.Size() != 0 {
+	if q.calls != 0 {
 		t.Error("addresses were counted with no baseline configured")
 	}
 }
@@ -137,10 +138,10 @@ func TestNoBaselineRefusesNothing(t *testing.T) {
 // Apply is the narrow call the settings watcher used to make; it must not
 // silently drop a baseline that was already in force.
 func TestApplyKeepsTheBaseline(t *testing.T) {
-	e := NewEnforcer(fixed{}, false, 0).WithLimiter(NewLimiter())
-	e.ApplyAll(false, 0, baseline(t, 4))
+	e := NewEnforcer(fixed{}, false).WithQuotaLimiter(newWindowQuota(), 60, 20)
+	e.ApplyAll(false, baseline(t, 4))
 
-	e.Apply(true, 250*time.Millisecond)
+	e.Apply(true)
 
 	codes := serve(e, "203.0.113.17", 6)
 	if codes[http.StatusOK] != 4 {

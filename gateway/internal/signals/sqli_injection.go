@@ -1,40 +1,16 @@
 package signals
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 	"sync/atomic"
-	"time"
 
 	"github.com/Adnan-Safdari/Intelligent_API_Security_Gateway/internal/config"
 	"github.com/Adnan-Safdari/Intelligent_API_Security_Gateway/internal/netutil"
 )
 
-// SQLiDetectorConfig controls SQL injection payload detection behavior.
-type SQLiDetectorConfig struct {
-	Enabled     bool
-	SQLPatterns []string
-}
-
-func DefaultSQLiDetectorConfig() SQLiDetectorConfig {
-	return SQLiDetectorConfig{
-		Enabled: true,
-		SQLPatterns: []string{
-			"' OR",
-			"--",
-			"UNION SELECT",
-			" OR 1=1",
-		},
-	}
-}
-
-func SQLiDetectorConfigFrom(cfg config.AttackDetectionConfig) SQLiDetectorConfig {
-	return SQLiDetectorConfig{
-		Enabled:     cfg.Enabled,
-		SQLPatterns: cfg.SQLPatterns,
-	}
-}
+// The patterns used when configuration names none.
+var defaultSQLPatterns = []string{"' OR", "--", "UNION SELECT", " OR 1=1"}
 
 // sqliTunables is what the console can move at runtime, swapped whole.
 type sqliTunables struct {
@@ -44,8 +20,8 @@ type sqliTunables struct {
 
 // SQLiDetector inspects request path, query, and body for SQLi signatures.
 type SQLiDetector struct {
-	tun  atomic.Pointer[sqliTunables]
-	last *lastEvidenceStore
+	tun atomic.Pointer[sqliTunables]
+	*lastEvidenceStore
 }
 
 func (d *SQLiDetector) settings() sqliTunables { return *d.tun.Load() }
@@ -55,21 +31,16 @@ func (d *SQLiDetector) settings() sqliTunables { return *d.tun.Load() }
 func (d *SQLiDetector) Apply(cfg config.AttackDetectionConfig) {
 	patterns := cfg.SQLPatterns
 	if len(patterns) == 0 {
-		patterns = DefaultSQLiDetectorConfig().SQLPatterns
+		patterns = defaultSQLPatterns
 	}
 	d.tun.Store(&sqliTunables{enabled: cfg.Enabled, sqlPatterns: patterns})
 }
 
-func NewSQLiDetector(cfg SQLiDetectorConfig) *SQLiDetector {
-	sd := &SQLiDetector{last: newLastEvidenceStore(lastEvidenceTTL)}
-	sd.Apply(config.AttackDetectionConfig{
-		Enabled:     cfg.Enabled,
-		SQLPatterns: cfg.SQLPatterns,
-	})
+func NewSQLiDetector(cfg config.AttackDetectionConfig) *SQLiDetector {
+	sd := &SQLiDetector{lastEvidenceStore: newLastEvidenceStore(SignalSQLi)}
+	sd.Apply(cfg)
 	return sd
 }
-
-func (sd *SQLiDetector) Name() string { return SignalSQLi }
 
 func (sd *SQLiDetector) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -88,7 +59,7 @@ func (sd *SQLiDetector) Middleware(next http.Handler) http.Handler {
 		haystack := r.URL.Path + " " + r.URL.RawPath + " " + queryText + " " + string(bodyBytes)
 		matched := sd.findMatches(haystack, tun.sqlPatterns)
 		ev := sd.evidenceFrom(matched)
-		sd.last.Put(ip, r.Header.Get(RequestIDHeader), ev)
+		sd.put(ip, r.Header.Get(RequestIDHeader), ev)
 
 		if ev.ThresholdCross {
 			sd.logAlert(ip, r, strings.Join(matched, ", "))
@@ -106,18 +77,6 @@ func decodedQuery(r *http.Request) string {
 		parts = append(parts, entries...)
 	}
 	return strings.Join(parts, " ")
-}
-
-// Metrics returns the latest SQLi evidence for an IP, from whichever request
-// produced it.
-func (sd *SQLiDetector) Metrics(ip string) Evidence {
-	return sd.last.Get(ip, SignalSQLi)
-}
-
-// MetricsFor returns the SQLi evidence for one request, and nothing when that
-// request never reached this detector.
-func (sd *SQLiDetector) MetricsFor(ip, requestID string) Evidence {
-	return sd.last.GetFor(ip, requestID, SignalSQLi)
 }
 
 func (sd *SQLiDetector) findMatches(text string, patterns []string) []string {
@@ -197,24 +156,5 @@ func isLowConfidenceSQLPattern(pattern string) bool {
 }
 
 func (sd *SQLiDetector) logAlert(ip string, r *http.Request, details string) {
-	fmt.Printf(`
-		========================================
-		SECURITY ALERT: SQL INJECTION DETECTED
-		----------------------------------------
-		IP Address     : %s
-		Method         : %s
-		Endpoint       : %s
-		User-Agent     : %s
-		Details        : %s
-		Timestamp      : %s
-		ACTION         : DETECTED (ALLOWING REQUEST)
-		========================================
-		`,
-		ip,
-		r.Method,
-		r.URL.Path,
-		r.Header.Get("User-Agent"),
-		details,
-		time.Now().Format(time.RFC3339),
-	)
+	printAlert("SQL INJECTION DETECTED", "Details", details, ip, r)
 }

@@ -21,11 +21,11 @@ class PolicyWriter:
         self._store = store
         self._settings = settings
         self._adaptive = settings.adaptive
-        self._allowlist = _networks((*settings.allowlist, *self._adaptive.guardrails.allowlist))
+        self._allowlist = parse_networks((*settings.allowlist, *self._adaptive.guardrails.allowlist))
 
     def apply_config(self, config) -> None:
         self._adaptive = config.validate()
-        self._allowlist = _networks(
+        self._allowlist = parse_networks(
             (*self._settings.allowlist, *self._adaptive.guardrails.allowlist)
         )
 
@@ -55,7 +55,7 @@ class PolicyWriter:
                 notes.append(f"skipped {decision.ip} (not a public address)")
                 continue
 
-            if decision.action != ACTION_ALLOW and _within(decision.ip, self._allowlist):
+            if decision.action != ACTION_ALLOW and within(decision.ip, self._allowlist):
                 notes.append(f"skipped {decision.ip} (emergency allowlist)")
                 continue
 
@@ -179,7 +179,8 @@ def _is_public(ip: str) -> bool:
     )
 
 
-def _networks(entries: tuple[str, ...]) -> list:
+def parse_networks(entries: tuple[str, ...]) -> list:
+    """Parse config entries into networks, ignoring anything unparseable."""
     networks = []
     for entry in entries:
         try:
@@ -189,7 +190,7 @@ def _networks(entries: tuple[str, ...]) -> list:
     return networks
 
 
-def _within(ip: str, networks: list) -> bool:
+def within(ip: str, networks: list) -> bool:
     try:
         address = ipaddress.ip_address(ip)
     except ValueError:

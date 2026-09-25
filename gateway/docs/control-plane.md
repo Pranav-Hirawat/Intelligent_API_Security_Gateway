@@ -193,7 +193,6 @@ both stores.
 | `iasg/evidence/` | Stream consumer and ingest |
 | `iasg/correlation/` | Clustering, features, campaign formation |
 | `iasg/campaigns/repository.py` | Campaign persistence |
-| `iasg/policy/agent.py` | The escalation ladder and TTL table |
 | `iasg/policy/simulation.py` | Safety checks before anything is written |
 | `iasg/policy/writer.py` | The writing rails |
 | `iasg/feedback/` | Override memory and learning |

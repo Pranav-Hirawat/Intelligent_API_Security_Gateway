@@ -64,21 +64,5 @@ class Store(Protocol):
     def keys(self, pattern: str) -> list[str]:
         pass
 
-    def stream_first_id(self, stream: str) -> str | None:
-        """
-        The oldest entry still in the stream, or None if it is empty.
-
-        Compared against a group's last-delivered id, this is how a reader
-        learns that entries were trimmed away before it got to them. Prevention
-        can always be exceeded -- a long enough run outruns any cap -- so the
-        adaptive baseline learning marks affected windows untrusted instead of
-        pretending the loss cannot happen.
-        """
-        ...
-
-    def group_last_delivered(self, stream: str, group: str) -> str | None:
-        """The last id handed to this group, or None if the group is unknown."""
-        ...
-
     def close(self) -> None:
         pass

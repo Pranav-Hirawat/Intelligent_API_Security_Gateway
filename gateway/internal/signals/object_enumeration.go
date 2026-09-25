@@ -78,8 +78,6 @@ func NewObjectEnumerationDetector(cfg config.ObjectEnumerationConfig, templates 
 	return d
 }
 
-func (d *ObjectEnumerationDetector) Name() string { return SignalObjectEnum }
-
 func (d *ObjectEnumerationDetector) settings() objectEnumerationTunables { return *d.tun.Load() }
 
 // Apply keeps observations already made, so tightening a limit judges the
@@ -150,7 +148,7 @@ func (d *ObjectEnumerationDetector) observe(ip, key, id string, denied bool, now
 		if len(d.clients) >= tun.maxClients {
 			// Identifiers are attacker input; an address spray must not become
 			// unbounded memory. Losing the stalest client is the safer failure.
-			dropOldestObjectClient(d.clients)
+			dropOldest(d.clients, func(c *objectClient) time.Time { return c.lastSeen })
 		}
 		client = &objectClient{trails: make(map[string]map[string]objectLookup)}
 		d.clients[ip] = client
@@ -318,18 +316,5 @@ func pruneObjectLookups(trail map[string]objectLookup, cutoff time.Time) {
 		if !lookup.at.After(cutoff) {
 			delete(trail, id)
 		}
-	}
-}
-
-func dropOldestObjectClient(clients map[string]*objectClient) {
-	var oldestIP string
-	var oldest time.Time
-	for ip, client := range clients {
-		if oldestIP == "" || client.lastSeen.Before(oldest) {
-			oldestIP, oldest = ip, client.lastSeen
-		}
-	}
-	if oldestIP != "" {
-		delete(clients, oldestIP)
 	}
 }

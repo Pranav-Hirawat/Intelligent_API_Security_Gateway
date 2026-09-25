@@ -22,7 +22,6 @@
 package signals
 
 import (
-	"fmt"
 	"net/http"
 	"sync"
 	"sync/atomic"
@@ -63,8 +62,6 @@ type ReputationDetector struct {
 }
 
 func (d *ReputationDetector) settings() reputationTunables { return *d.tun.Load() }
-
-func (d *ReputationDetector) Name() string { return SignalReputation }
 
 // Apply swaps in new settings. Recorded firings are kept: an address part-way
 // through a cooldown should not get a fresh one because the score was edited.
@@ -221,24 +218,5 @@ func (d *ReputationDetector) startCleanupTimer() {
 }
 
 func (d *ReputationDetector) logAlert(ip string, r *http.Request) {
-	fmt.Printf(`
-		========================================
-		SECURITY ALERT: KNOWN BAD ADDRESS
-		----------------------------------------
-		IP Address     : %s
-		Method         : %s
-		Endpoint       : %s
-		User-Agent     : %s
-		Source         : %s
-		Timestamp      : %s
-		ACTION         : DETECTED (ALLOWING REQUEST)
-		========================================
-		`,
-		ip,
-		r.Method,
-		r.URL.Path,
-		r.Header.Get("User-Agent"),
-		d.feed.Describe(),
-		time.Now().Format(time.RFC3339),
-	)
+	printAlert("KNOWN BAD ADDRESS", "Source", d.feed.Describe(), ip, r)
 }

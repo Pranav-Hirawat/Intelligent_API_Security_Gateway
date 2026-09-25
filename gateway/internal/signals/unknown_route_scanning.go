@@ -50,8 +50,6 @@ func NewUnknownRouteScanDetector(cfg config.UnknownRouteScanConfig, match func(s
 	return d
 }
 
-func (d *UnknownRouteScanDetector) Name() string { return SignalRouteScan }
-
 func (d *UnknownRouteScanDetector) settings() unknownRouteScanTunables { return *d.tun.Load() }
 
 // Apply keeps observations already made. Tightening a limit must judge the
@@ -115,7 +113,7 @@ func (d *UnknownRouteScanDetector) observe(ip, path string, now time.Time, tun u
 			// A detector must never turn an address spray into unbounded memory.
 			// Evict the stalest record; missing one new scanner is safer than
 			// making every request retain attacker-controlled path strings.
-			dropOldestUnknownRouteClient(d.clients)
+			dropOldest(d.clients, func(c *unknownRouteClient) time.Time { return c.lastSeen })
 		}
 		client = &unknownRouteClient{paths: make(map[string]time.Time)}
 		d.clients[ip] = client
@@ -202,18 +200,5 @@ func pruneUnknownPaths(paths map[string]time.Time, cutoff time.Time) {
 		if !at.After(cutoff) {
 			delete(paths, path)
 		}
-	}
-}
-
-func dropOldestUnknownRouteClient(clients map[string]*unknownRouteClient) {
-	var oldestIP string
-	var oldest time.Time
-	for ip, client := range clients {
-		if oldestIP == "" || client.lastSeen.Before(oldest) {
-			oldestIP, oldest = ip, client.lastSeen
-		}
-	}
-	if oldestIP != "" {
-		delete(clients, oldestIP)
 	}
 }

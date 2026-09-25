@@ -24,11 +24,9 @@ from iasg.models import (
     ACTION_ESCALATE,
     ACTION_MONITOR,
     ACTION_TEMP_BLOCK,
-    ACTION_THROTTLE,
     Campaign,
     Evidence,
 )
-from iasg.policy.agent import TTL, PolicyAgent
 from iasg.runner import Runner
 from iasg.store.memory import MemoryStore
 
@@ -164,82 +162,6 @@ def test_persistence_survives_storage():
 
     (reloaded,) = CampaignRepository(store).all()
     assert reloaded.persistence == 1
-
-
-# --- acting on it ---
-
-def test_a_campaign_that_survived_a_block_is_escalated():
-    agent = PolicyAgent()
-    c = campaign(confidence=0.8)
-
-    assert agent.decide(c)[0].action == ACTION_TEMP_BLOCK
-
-    c.persistence = 1
-    assert agent.decide(c)[0].action == ACTION_ESCALATE
-
-
-def test_a_throttled_campaign_that_returns_is_blocked():
-    agent = PolicyAgent()
-    c = campaign(confidence=0.6, persistence=1)
-
-    assert agent.decide(c)[0].action == ACTION_TEMP_BLOCK
-
-
-def test_no_history_leaves_the_ladder_exactly_as_it_was():
-    """The evidence-only path must be untouched for campaigns with no history."""
-    agent = PolicyAgent()
-
-    assert agent.decide(campaign(confidence=0.3))[0].action == ACTION_MONITOR
-    assert agent.decide(campaign(confidence=0.6))[0].action == ACTION_THROTTLE
-    assert agent.decide(campaign(confidence=0.8))[0].action == ACTION_TEMP_BLOCK
-    assert agent.decide(
-        campaign(ips=[f"203.0.113.{n}" for n in range(5)], confidence=0.95)
-    )[0].action == ACTION_ESCALATE
-
-
-def test_escalation_stays_out_of_reach_without_high_severity():
-    """
-    Escalation asks a human to look and holds an address for an hour. That is
-    too much to reach by persistence alone on something never called severe.
-    """
-    agent = PolicyAgent()
-    c = campaign(confidence=0.6, severity="medium", persistence=9)
-
-    assert agent.decide(c)[0].action == ACTION_TEMP_BLOCK
-
-
-def test_promotion_stops_at_the_top_of_the_ladder():
-    agent = PolicyAgent()
-    c = campaign(confidence=0.95, persistence=99)
-
-    assert agent.decide(c)[0].action == ACTION_ESCALATE
-
-
-def test_a_promoted_action_is_held_for_longer():
-    """TTL growth is a consequence of the rung, not a separate mechanism."""
-    agent = PolicyAgent()
-    c = campaign(confidence=0.6)
-
-    before = agent.decide(c)[0].ttl_seconds
-    c.persistence = 1
-    after = agent.decide(c)[0].ttl_seconds
-
-    assert after > before
-    assert before == TTL[ACTION_THROTTLE]
-    assert after == TTL[ACTION_TEMP_BLOCK]
-
-
-def test_the_written_policy_says_why_it_was_raised():
-    """An admin reading policy:<ip> should see what justified the severity."""
-    (decision,) = PolicyAgent().decide(campaign(persistence=2))
-
-    assert "survived 2 enforcement rounds" in decision.reason
-    assert "survived 2 enforcement rounds" in decision.to_json()
-
-
-def test_a_single_round_reads_as_singular():
-    (decision,) = PolicyAgent().decide(campaign(persistence=1))
-    assert "survived 1 enforcement round," in decision.reason + ","
 
 
 # --- the whole loop, through the runner ---

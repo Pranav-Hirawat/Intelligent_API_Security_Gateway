@@ -124,6 +124,17 @@ export default function AdaptivePage() {
     if (await saveConfig(draft, "advanced")) setConfirmAdvancedSave(false);
   }
 
+  // One row per plain numeric setting: [key, label, step?].
+  const numberFields = (section, rows) => rows.map(([name, label, step]) => (
+    <Field.Number
+      key={name}
+      label={label}
+      step={step}
+      value={draft[section][name]}
+      onChange={(value) => edit(section, name, Number(value))}
+    />
+  ));
+
   return (
     <>
       <PageHead title="Adaptive enforcement">
@@ -460,59 +471,7 @@ export default function AdaptivePage() {
                   onChange={(value) => edit("guardrails", "maximum_automatic_action", value)}
                   optionLabel={actionLabel}
                 />
-                <Field.Number
-                  label="Maximum policy duration (seconds)"
-                  value={draft.guardrails.maximum_policy_duration_seconds}
-                  onChange={(value) => edit("guardrails", "maximum_policy_duration_seconds", Number(value))}
-                />
-                <Field.Number
-                  label="Monitor duration (seconds)"
-                  value={draft.guardrails.monitor_duration_seconds}
-                  onChange={(value) => edit("guardrails", "monitor_duration_seconds", Number(value))}
-                />
-                <Field.Number
-                  label="Throttle duration (seconds)"
-                  value={draft.guardrails.throttle_duration_seconds}
-                  onChange={(value) => edit("guardrails", "throttle_duration_seconds", Number(value))}
-                />
-                <Field.Number
-                  label="Temporary-block duration (seconds)"
-                  value={draft.guardrails.temporary_block_duration_seconds}
-                  onChange={(value) => edit("guardrails", "temporary_block_duration_seconds", Number(value))}
-                />
-                <Field.Number
-                  label="Throttle confidence"
-                  step="0.01"
-                  value={draft.guardrails.minimum_confidence_throttle}
-                  onChange={(value) => edit("guardrails", "minimum_confidence_throttle", Number(value))}
-                />
-                <Field.Number
-                  label="Temporary-block confidence"
-                  step="0.01"
-                  value={draft.guardrails.minimum_confidence_temporary_block}
-                  onChange={(value) => edit("guardrails", "minimum_confidence_temporary_block", Number(value))}
-                />
-                <Field.Number
-                  label="Minimum throttle RPM"
-                  value={draft.guardrails.minimum_throttle_rpm}
-                  onChange={(value) => edit("guardrails", "minimum_throttle_rpm", Number(value))}
-                />
-                <Field.Number
-                  label="Default throttle RPM"
-                  value={draft.guardrails.default_throttle_rpm}
-                  onChange={(value) => edit("guardrails", "default_throttle_rpm", Number(value))}
-                />
-                <Field.Number
-                  label="Maximum throttle RPM"
-                  value={draft.guardrails.maximum_throttle_rpm}
-                  onChange={(value) => edit("guardrails", "maximum_throttle_rpm", Number(value))}
-                />
-                <Field.Number
-                  label="Throttle baseline fraction"
-                  step="0.01"
-                  value={draft.guardrails.throttle_baseline_fraction}
-                  onChange={(value) => edit("guardrails", "throttle_baseline_fraction", Number(value))}
-                />
+                {numberFields("guardrails", GUARDRAIL_LIMITS)}
                 <Field.Toggle
                   label="Enable ready-baseline behavioural throttles"
                   checked={Boolean(draft.guardrails.behavioural_throttle_enabled)}
@@ -525,21 +484,7 @@ export default function AdaptivePage() {
                   hint="Only a ready endpoint baseline exceeding this ratio can create a throttle; blocks still require detector evidence."
                   onChange={(value) => edit("guardrails", "behavioural_throttle_minimum_deviation", Number(value))}
                 />
-                <Field.Number
-                  label="Policy cooldown (seconds)"
-                  value={draft.guardrails.policy_cooldown_seconds}
-                  onChange={(value) => edit("guardrails", "policy_cooldown_seconds", Number(value))}
-                />
-                <Field.Number
-                  label="Evidence required: throttle"
-                  value={draft.guardrails.minimum_deterministic_evidence_throttle}
-                  onChange={(value) => edit("guardrails", "minimum_deterministic_evidence_throttle", Number(value))}
-                />
-                <Field.Number
-                  label="Evidence required: temporary block"
-                  value={draft.guardrails.minimum_deterministic_evidence_temporary_block}
-                  onChange={(value) => edit("guardrails", "minimum_deterministic_evidence_temporary_block", Number(value))}
-                />
+                {numberFields("guardrails", GUARDRAIL_EVIDENCE)}
                 <Field.Textarea
                   label="Emergency allowlist (address/CIDR per line)"
                   value={draft.guardrails.allowlist.join("\n")}
@@ -556,85 +501,14 @@ export default function AdaptivePage() {
             <section hidden={advancedSection !== "baseline"}>
               <h3>Baseline learning</h3>
               <div className="guardrail-grid">
-                <Field.Number
-                  label="Warm-up windows"
-                  value={draft.baseline.warmup_windows}
-                  onChange={(value) => edit("baseline", "warmup_windows", Number(value))}
-                />
-                <Field.Number
-                  label="Rolling windows"
-                  value={draft.baseline.rolling_windows}
-                  onChange={(value) => edit("baseline", "rolling_windows", Number(value))}
-                />
-                <Field.Number
-                  label="MAD multiplier"
-                  step="0.1"
-                  value={draft.baseline.mad_multiplier}
-                  onChange={(value) => edit("baseline", "mad_multiplier", Number(value))}
-                />
-                <Field.Number
-                  label="Minimum MAD"
-                  step="0.1"
-                  value={draft.baseline.minimum_mad}
-                  onChange={(value) => edit("baseline", "minimum_mad", Number(value))}
-                />
-                <Field.Number
-                  label="Minimum learned RPM"
-                  value={draft.baseline.minimum_threshold_rpm}
-                  onChange={(value) => edit("baseline", "minimum_threshold_rpm", Number(value))}
-                />
-                <Field.Number
-                  label="Maximum learned RPM"
-                  value={draft.baseline.maximum_threshold_rpm}
-                  onChange={(value) => edit("baseline", "maximum_threshold_rpm", Number(value))}
-                />
-                <Field.Number
-                  label="Baseline hysteresis"
-                  step="0.01"
-                  value={draft.baseline.hysteresis_ratio}
-                  onChange={(value) => edit("baseline", "hysteresis_ratio", Number(value))}
-                />
-                <Field.Number
-                  label="Threshold cooldown (seconds)"
-                  value={draft.baseline.cooldown_seconds}
-                  onChange={(value) => edit("baseline", "cooldown_seconds", Number(value))}
-                />
+                {numberFields("baseline", BASELINE_NUMBERS)}
               </div>
             </section>
 
             <section hidden={advancedSection !== "risk"}>
               <h3>Risk and confidence tuning</h3>
               <div className="guardrail-grid">
-                <Field.Number
-                  label="Deterministic risk weight"
-                  step="0.01"
-                  value={draft.risk.deterministic_weight}
-                  onChange={(value) => edit("risk", "deterministic_weight", Number(value))}
-                />
-                <Field.Number
-                  label="Behavioural risk weight"
-                  step="0.01"
-                  value={draft.risk.behavioural_weight}
-                  onChange={(value) => edit("risk", "behavioural_weight", Number(value))}
-                />
-                <Field.Number
-                  label="Campaign risk weight"
-                  step="0.01"
-                  value={draft.risk.campaign_weight}
-                  onChange={(value) => edit("risk", "campaign_weight", Number(value))}
-                />
-                <Field.Number
-                  label="Throttle risk score"
-                  step="0.1"
-                  value={draft.risk.throttle_score}
-                  onChange={(value) => edit("risk", "throttle_score", Number(value))}
-                />
-                <Field.Number
-                  label="Temporary-block risk score"
-                  step="0.1"
-                  value={draft.risk.temporary_block_score}
-                  onChange={(value) => edit("risk", "temporary_block_score", Number(value))}
-                />
+                {numberFields("risk", RISK_NUMBERS)}
               </div>
             </section>
           </div>
@@ -678,10 +552,49 @@ export default function AdaptivePage() {
     </>
   );
 }
+
+// Plain numeric settings, in the order the form shows them.
+const GUARDRAIL_LIMITS = [
+  ["maximum_policy_duration_seconds", "Maximum policy duration (seconds)"],
+  ["monitor_duration_seconds", "Monitor duration (seconds)"],
+  ["throttle_duration_seconds", "Throttle duration (seconds)"],
+  ["temporary_block_duration_seconds", "Temporary-block duration (seconds)"],
+  ["minimum_confidence_throttle", "Throttle confidence", "0.01"],
+  ["minimum_confidence_temporary_block", "Temporary-block confidence", "0.01"],
+  ["minimum_throttle_rpm", "Minimum throttle RPM"],
+  ["default_throttle_rpm", "Default throttle RPM"],
+  ["maximum_throttle_rpm", "Maximum throttle RPM"],
+  ["throttle_baseline_fraction", "Throttle baseline fraction", "0.01"],
+];
+
+const GUARDRAIL_EVIDENCE = [
+  ["policy_cooldown_seconds", "Policy cooldown (seconds)"],
+  ["minimum_deterministic_evidence_throttle", "Evidence required: throttle"],
+  ["minimum_deterministic_evidence_temporary_block", "Evidence required: temporary block"],
+];
+
+const BASELINE_NUMBERS = [
+  ["warmup_windows", "Warm-up windows"],
+  ["rolling_windows", "Rolling windows"],
+  ["mad_multiplier", "MAD multiplier", "0.1"],
+  ["minimum_mad", "Minimum MAD", "0.1"],
+  ["minimum_threshold_rpm", "Minimum learned RPM"],
+  ["maximum_threshold_rpm", "Maximum learned RPM"],
+  ["hysteresis_ratio", "Baseline hysteresis", "0.01"],
+  ["cooldown_seconds", "Threshold cooldown (seconds)"],
+];
+
+const RISK_NUMBERS = [
+  ["deterministic_weight", "Deterministic risk weight", "0.01"],
+  ["behavioural_weight", "Behavioural risk weight", "0.01"],
+  ["campaign_weight", "Campaign risk weight", "0.01"],
+  ["throttle_score", "Throttle risk score", "0.1"],
+  ["temporary_block_score", "Temporary-block risk score", "0.1"],
+];
+
 function splitRanges(value) {
   return value
     .split(/[\n,]/)
     .map((entry) => entry.trim())
     .filter(Boolean);
 }
-

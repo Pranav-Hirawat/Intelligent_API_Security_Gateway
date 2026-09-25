@@ -353,7 +353,6 @@ there together:
 | `iasg/adaptive/` | learns baselines, scores risk, and stages current policy recommendations |
 | `iasg/correlation/` | **groups IPs into campaigns** — union-find over shared traits |
 | `iasg/campaigns/` | memory: campaigns persist, merge, and are reviewed for outcome |
-| `iasg/policy/agent.py` | legacy fixed policy ladder, kept for compatibility but not on the live path |
 | `iasg/policy/simulation.py` | is the response safe? collateral checks, run last |
 | `iasg/policy/writer.py` | the only code that writes policy, and its rails |
 | `iasg/feedback/` | human overrides, and what the agent learns from them |

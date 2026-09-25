@@ -115,7 +115,7 @@ func TestHeartbeatSurvivesMissingInputs(t *testing.T) {
 // A real AsyncWriter satisfies QueueStats. Without this the heartbeat could
 // compile against fakes forever while never fitting the thing it reports on.
 func TestAsyncWriterIsAQueueStats(t *testing.T) {
-	var _ QueueStats = NewAsyncWriter[Event](&captureWriter{}, 4, time.Second)
-	var _ QueueStats = NewAsyncWriter[Arrival](&captureArrivals{}, 4, time.Second)
+	var _ QueueStats = NewNamedAsyncWriter[Event](&captureWriter{}, 4, time.Second, "")
+	var _ QueueStats = NewNamedAsyncWriter[Arrival](&captureArrivals{}, 4, time.Second, "")
 	var _ InFlightSource = &Recorder{}
 }

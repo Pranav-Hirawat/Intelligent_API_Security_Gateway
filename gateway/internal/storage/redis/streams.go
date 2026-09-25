@@ -1,6 +1,7 @@
 package redisstore
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 
@@ -14,26 +15,27 @@ const (
 	KeyHealth   = "iasg:telemetry:health"
 )
 
-// ArrivalStore appends arrival records to their own stream.
+// streamStore appends one kind of record to its own capped stream. Arrivals
+// and the heartbeat differ only in the fields they index beside the payload.
 //
 // Deliberately does not touch iasg:stats or iasg:attackers. Those counters
 // mean "requests the gateway finished handling", and incrementing them here
 // would double every number the console shows.
-type ArrivalStore struct {
+type streamStore[T any] struct {
 	client *redis.Client
 	key    string
 	maxLen int64
+	values func(rec T, payload []byte) map[string]any
 }
 
-// HealthStore appends the telemetry heartbeat.
-//
-// Capped far shorter than the request streams: the heartbeat is one record a
-// second, and history older than the capture run is of no use to anyone.
-type HealthStore struct {
-	client *redis.Client
-	key    string
-	maxLen int64
-}
+// ArrivalStore's indexed fields mirror the event stream's, so a consumer can
+// filter either stream the same way without decoding the payload.
+type ArrivalStore = streamStore[telemetry.Arrival]
+
+// HealthStore is the telemetry heartbeat, capped far shorter than the request
+// streams: it is one record a second, and history older than the capture run
+// is of no use to anyone.
+type HealthStore = streamStore[telemetry.Health]
 
 // Arrivals shares the Store's connection pool. A second pool would mean a
 // second set of connections competing for the same Redis under exactly the
@@ -43,14 +45,15 @@ func (s *Store) Arrivals(cfg config.RedisConfig) *ArrivalStore {
 		return nil
 	}
 	key := cfg.ArrivalStreamKey
-	if key == "" {
-		key = KeyArrivals
-	}
+	key = cmp.Or(key, KeyArrivals)
 	maxLen := cfg.ArrivalMaxLen
 	if maxLen <= 0 {
 		maxLen = s.maxLen
 	}
-	return &ArrivalStore{client: s.client, key: key, maxLen: maxLen}
+	return &ArrivalStore{client: s.client, key: key, maxLen: maxLen,
+		values: func(rec telemetry.Arrival, payload []byte) map[string]any {
+			return map[string]any{"arrival": payload, "ip": rec.IP, "path": rec.Path, "requestId": rec.RequestID}
+		}}
 }
 
 func (s *Store) Health(cfg config.RedisConfig) *HealthStore {
@@ -58,40 +61,18 @@ func (s *Store) Health(cfg config.RedisConfig) *HealthStore {
 		return nil
 	}
 	key := cfg.HealthStreamKey
-	if key == "" {
-		key = KeyHealth
-	}
+	key = cmp.Or(key, KeyHealth)
 	maxLen := cfg.HealthMaxLen
 	if maxLen <= 0 {
 		maxLen = 86400
 	}
-	return &HealthStore{client: s.client, key: key, maxLen: maxLen}
+	return &HealthStore{client: s.client, key: key, maxLen: maxLen,
+		values: func(rec telemetry.Health, payload []byte) map[string]any {
+			return map[string]any{"health": payload, "seq": rec.Seq}
+		}}
 }
 
-func (s *ArrivalStore) WriteEvent(ctx context.Context, rec telemetry.Arrival) error {
-	if s == nil || s.client == nil {
-		return nil
-	}
-	payload, err := json.Marshal(rec)
-	if err != nil {
-		return err
-	}
-	// Indexed fields mirror the event stream's, so a consumer can filter
-	// either stream the same way without decoding the payload.
-	return s.client.XAdd(ctx, &redis.XAddArgs{
-		Stream: s.key,
-		MaxLen: s.maxLen,
-		Approx: true,
-		Values: map[string]any{
-			"arrival":   payload,
-			"ip":        rec.IP,
-			"path":      rec.Path,
-			"requestId": rec.RequestID,
-		},
-	}).Err()
-}
-
-func (s *HealthStore) WriteEvent(ctx context.Context, rec telemetry.Health) error {
+func (s *streamStore[T]) WriteEvent(ctx context.Context, rec T) error {
 	if s == nil || s.client == nil {
 		return nil
 	}
@@ -103,6 +84,6 @@ func (s *HealthStore) WriteEvent(ctx context.Context, rec telemetry.Health) erro
 		Stream: s.key,
 		MaxLen: s.maxLen,
 		Approx: true,
-		Values: map[string]any{"health": payload, "seq": rec.Seq},
+		Values: s.values(rec, payload),
 	}).Err()
 }

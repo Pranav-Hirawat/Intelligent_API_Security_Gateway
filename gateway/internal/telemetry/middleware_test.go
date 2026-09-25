@@ -84,7 +84,7 @@ func firedContains(ev Event, signal string) bool {
 func TestBlockedRequestReportsNoSignalsOfItsOwn(t *testing.T) {
 	const attacker = "203.0.113.7"
 
-	sqli := signals.NewSQLiDetector(signals.DefaultSQLiDetectorConfig())
+	sqli := signals.NewSQLiDetector(config.AttackDetectionConfig{Enabled: true})
 	collector := signals.NewCollector(sqli)
 	writer := &captureWriter{}
 
@@ -133,7 +133,7 @@ func TestBlockedRequestReportsNoSignalsOfItsOwn(t *testing.T) {
 func TestInspectedRequestsReportTheirOwnSignals(t *testing.T) {
 	const ip = "203.0.113.8"
 
-	sqli := signals.NewSQLiDetector(signals.DefaultSQLiDetectorConfig())
+	sqli := signals.NewSQLiDetector(config.AttackDetectionConfig{Enabled: true})
 	collector := signals.NewCollector(sqli)
 	writer := &captureWriter{}
 
@@ -158,7 +158,7 @@ func TestInspectedRequestsReportTheirOwnSignals(t *testing.T) {
 func TestSQLiProductSearchTelemetryContainsEvidence(t *testing.T) {
 	const ip = "203.0.113.48"
 
-	sqli := signals.NewSQLiDetector(signals.DefaultSQLiDetectorConfig())
+	sqli := signals.NewSQLiDetector(config.AttackDetectionConfig{Enabled: true})
 	collector := signals.NewCollector(sqli)
 	writer := &captureWriter{}
 	backendCalls := 0
@@ -194,7 +194,7 @@ func TestSQLiProductSearchTelemetryContainsEvidence(t *testing.T) {
 // The Docker liveness probe must not make an idle console look like it has
 // client traffic, but the endpoint itself remains a normal attack surface.
 func TestDockerHealthcheckIsOmittedWithoutHidingHealthEndpointAttacks(t *testing.T) {
-	sqli := signals.NewSQLiDetector(signals.DefaultSQLiDetectorConfig())
+	sqli := signals.NewSQLiDetector(config.AttackDetectionConfig{Enabled: true})
 	collector := signals.NewCollector(sqli)
 	writer := &captureWriter{}
 	handler := Middleware(writer, collector, nil, nil)(sqli.Middleware(http.HandlerFunc(

@@ -1,6 +1,6 @@
 import { getRedis } from "@/lib/redis";
 import { require as requireRole } from "@/lib/auth";
-import { POLICY_PREFIX } from "@/lib/plane";
+import { parseJson, POLICY_PREFIX, scanKeys } from "@/lib/plane";
 import { getPool } from "@/lib/postgres";
 import { isIP } from "node:net";
 
@@ -21,20 +21,12 @@ export async function DELETE(_request, { params }) {
 
   try {
     const redis = await getRedis();
-    const keys = [];
-    for await (const found of redis.scanIterator({ MATCH: `${POLICY_PREFIX}${ip}:*`, COUNT: 100 })) {
-      if (Array.isArray(found)) keys.push(...found);
-      else keys.push(found);
-    }
+    const keys = await scanKeys(redis, `${POLICY_PREFIX}${ip}:*`);
     keys.push(`${POLICY_PREFIX}${ip}`);
     const values = keys.length ? await redis.mGet(keys) : [];
     const policyIds = values.flatMap((raw) => {
-      try {
-        const id = JSON.parse(raw)?.policy_id;
-        return id ? [id] : [];
-      } catch {
-        return [];
-      }
+      const id = parseJson(raw)?.policy_id;
+      return id ? [id] : [];
     });
     const removed = keys.length ? await redis.del(keys) : 0;
     let auditRecorded = false;

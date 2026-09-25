@@ -21,10 +21,6 @@ class MemoryStore:
         self._streams: dict[str, list[tuple[str, dict[str, str]]]] = {}
         self._cursors: dict[tuple[str, str], int] = {}
         self._pending: dict[tuple[str, str], set[str]] = {}
-        # Kept as an id rather than derived from the cursor, because a trim
-        # moves the cursor and must not move this. The gap between it and the
-        # stream's first id is exactly what says entries were lost unread.
-        self._last_delivered: dict[tuple[str, str], str] = {}
         self._counter = itertools.count(1)
 
     # --- stream side ---
@@ -34,7 +30,6 @@ class MemoryStore:
         self._streams.setdefault(stream, [])
         self._cursors.setdefault((stream, group), 0)
         self._pending.setdefault((stream, group), set())
-        self._last_delivered.setdefault((stream, group), "0-0")
 
     def append(self, stream: str, fields: dict[str, str]) -> str:
         entry_id = f"{next(self._counter)}-0"
@@ -60,8 +55,6 @@ class MemoryStore:
         self._cursors[(stream, group)] = start + len(batch)
         for entry_id, _ in batch:
             self._pending[(stream, group)].add(entry_id)
-        if batch:
-            self._last_delivered[(stream, group)] = batch[-1][0]
 
         # block_ms ignored: with no other writers there is nothing to wait for.
         return batch
@@ -92,13 +85,6 @@ class MemoryStore:
                 pending.remove(entry_id)
                 acked += 1
         return acked
-
-    def stream_first_id(self, stream: str) -> str | None:
-        entries = self._streams.get(stream) or []
-        return entries[0][0] if entries else None
-
-    def group_last_delivered(self, stream: str, group: str) -> str | None:
-        return self._last_delivered.get((stream, group))
 
     def trim(self, stream: str, maxlen: int) -> int:
         """

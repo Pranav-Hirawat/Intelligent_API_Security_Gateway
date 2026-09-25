@@ -27,7 +27,6 @@ from iasg.models import (
     Evidence,
     PolicyDecision,
 )
-from iasg.policy.agent import TTL, PolicyAgent
 from iasg.runner import Runner
 from iasg.store.memory import MemoryStore
 
@@ -40,7 +39,7 @@ def settings(**overrides):
 
 def decision(ip="203.0.113.5", action=ACTION_THROTTLE):
     return PolicyDecision(ip=ip, action=action, campaign_id="1",
-                          confidence=0.6, ttl_seconds=TTL[action], reason="test")
+                          confidence=0.6, ttl_seconds=900, reason="test")
 
 
 def campaign(ips=("203.0.113.5",), confidence=0.6, severity="high", **kw):
@@ -269,38 +268,6 @@ def test_learning_survives_storage():
     assert FeedbackMemory(store, settings()).bias_for("Reconnaissance") == 1
 
 
-# --- acting on what was learned ---
-
-def test_a_learned_bias_moves_the_recommendation_one_rung():
-    agent = PolicyAgent()
-    c = campaign(confidence=0.6)
-
-    assert agent.decide(c)[0].action == ACTION_THROTTLE
-    assert agent.decide(c, bias=1)[0].action == ACTION_TEMP_BLOCK
-    assert agent.decide(c, bias=-1)[0].action == ACTION_MONITOR
-
-
-def test_a_bias_can_never_be_worth_more_than_one_rung():
-    """Stored state reaching the ladder is clamped rather than trusted."""
-    agent = PolicyAgent()
-    c = campaign(confidence=0.6)
-
-    assert agent.decide(c, bias=99)[0].action == ACTION_TEMP_BLOCK
-    assert agent.decide(c, bias=-99)[0].action == ACTION_MONITOR
-
-
-def test_a_negative_bias_stops_at_the_bottom_of_the_ladder():
-    agent = PolicyAgent()
-    assert agent.decide(campaign(confidence=0.2), bias=-1)[0].action == ACTION_MONITOR
-
-
-def test_learning_cannot_reach_escalation_without_high_severity():
-    agent = PolicyAgent()
-    c = campaign(confidence=0.8, severity="medium", persistence=5)
-
-    assert agent.decide(c, bias=1)[0].action == ACTION_TEMP_BLOCK
-
-
 # --- the whole loop ---
 
 def seed(store, ip="203.0.113.5", n=6, offset=0):
@@ -328,22 +295,16 @@ def test_an_override_reaches_redis_and_is_remembered():
     assert runner.feedback.all().get(campaign_type, {}).get("up") == 1
 
 
-def test_the_agent_starts_making_the_correction_itself():
+def test_repeated_corrections_are_remembered_by_the_next_run():
     store = MemoryStore()
     runner = Runner(settings(), store)
 
-    # Twice corrected upward on this kind of campaign...
     for cycle_n in range(2):
         seed(store, offset=cycle_n * 600)
         instruct(store, action="temp_block")
         runner.cycle()
 
-    # ...so the third time, unprompted, it proposes the stronger action.
-    fresh = Runner(settings(), store)
-    assert fresh.feedback.bias_for("Brute Force") == 1
-    assert fresh.policy.decide(
-        campaign(confidence=0.6), bias=fresh.feedback.bias_for("Brute Force")
-    )[0].action == ACTION_TEMP_BLOCK
+    assert Runner(settings(), store).feedback.bias_for("Brute Force") == 1
 
 
 def test_an_instruction_lands_even_with_no_attack_this_cycle():

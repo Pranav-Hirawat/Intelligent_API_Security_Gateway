@@ -88,7 +88,7 @@ func TestBruteForceFailuresSurviveAnApply(t *testing.T) {
 }
 
 func TestSQLiCanBeDisabledLive(t *testing.T) {
-	sd := NewSQLiDetector(DefaultSQLiDetectorConfig())
+	sd := NewSQLiDetector(config.AttackDetectionConfig{Enabled: true})
 	handler := sd.Middleware(okBackend())
 
 	r := httptest.NewRequest(http.MethodGet, "/?q=UNION+SELECT+password", nil)
@@ -114,7 +114,7 @@ func TestSQLiCanBeDisabledLive(t *testing.T) {
 func TestApplyIsSafeUnderConcurrentTraffic(t *testing.T) {
 	fd := NewFloodDetector(config.RateLimitConfig{Enabled: true, RequestsPerMinute: 50})
 	bd := NewBruteForceDetector(config.BruteForceConfig{Enabled: true, MaxFailures: 5, Window: time.Minute}, loginOutcomes, loginMatch)
-	sd := NewSQLiDetector(DefaultSQLiDetectorConfig())
+	sd := NewSQLiDetector(config.AttackDetectionConfig{Enabled: true})
 	td := NewTraversalEnumDetector(config.EnumerationConfig{Enabled: true})
 	od := NewObjectEnumerationDetector(config.ObjectEnumerationConfig{Enabled: true, DistinctIDs: 5, Window: time.Minute},
 		[]string{"GET /api/orders/{id}"}, objectRouteMatch)

@@ -34,7 +34,6 @@ from iasg.feedback import overrides as human
 from iasg.feedback.memory import FeedbackMemory
 from iasg.feedback.overrides import OverrideChannel
 from iasg.models import ACTION_ESCALATE, ACTION_MONITOR, Campaign, PolicyDecision
-from iasg.policy.agent import PolicyAgent
 from iasg.policy.simulation import Simulator
 from iasg.policy.writer import PolicyWriter
 from iasg.reasoning import open_provider
@@ -82,9 +81,6 @@ class Runner:
             persistence=self.database.campaigns if self.database else None,
         )
         self.simulator = Simulator(self.store, settings)
-        # Kept as the compatibility surface for embedders and historical
-        # feedback tests. Production decisions below use AdaptiveController.
-        self.policy = PolicyAgent()
         self.overrides = OverrideChannel(self.store, settings)
         self.feedback = FeedbackMemory(
             self.store,
@@ -166,10 +162,7 @@ class Runner:
             result.manual, notes = self.simulator.review(loose, evidence)
             result.notes.extend(notes)
             for decision in result.manual:
-                now = datetime.now(timezone.utc)
-                self.adaptive.lifecycle.repository.save_recommendation(
-                    Recommendation(decision, STATUS_APPROVED, now, now)
-                )
+                self._approve(decision)
                 self._write_active(decision, result, actor=decision.issued_by)
 
         # 6. review -- did acting on the older campaigns change anything? A
@@ -268,11 +261,7 @@ class Runner:
             automatic = eligible.get(decision.policy_id, False)
             should_activate = human_override or automatic
             if should_activate:
-                now = datetime.now(timezone.utc)
-                self.adaptive.lifecycle.repository.save_recommendation(
-                    Recommendation(decision, STATUS_APPROVED, now, now)
-                )
-            if should_activate:
+                self._approve(decision)
                 if self._write_active(decision, result, actor=decision.issued_by):
                     active.append(decision)
 
@@ -304,6 +293,12 @@ class Runner:
                 result.escalated.append(campaign)
 
         self.campaigns.save(campaign)
+
+    def _approve(self, decision: PolicyDecision) -> None:
+        now = datetime.now(timezone.utc)
+        self.adaptive.lifecycle.repository.save_recommendation(
+            Recommendation(decision, STATUS_APPROVED, now, now)
+        )
 
     def _activate_approved(self, config, result: CycleResult) -> None:
         # An analyst may approve in Manual mode.  Switching back to Monitor
@@ -375,9 +370,6 @@ class Runner:
 def report(result: CycleResult) -> None:
     """Print one cycle in the shape the proposal's demo output describes."""
     print(f"\n[cycle] read {result.evidence_count} events")
-
-    for line in result.learned:
-        print(f"[learned]     {line}")
 
     for decision in result.manual:
         print(f"[human]       {decision.ip} -> {decision.action} ({decision.reason})")

@@ -82,25 +82,6 @@ class RedisStore:
         # scan_iter rather than KEYS, which blocks Redis across large keyspaces.
         return list(self._client.scan_iter(match=pattern, count=500))
 
-    def stream_first_id(self, stream: str) -> str | None:
-        try:
-            info = self._client.xinfo_stream(stream)
-        except redis.ResponseError:
-            # No such stream. Nothing has been trimmed because nothing exists.
-            return None
-        first = info.get("first-entry")
-        return first[0] if first else None
-
-    def group_last_delivered(self, stream: str, group: str) -> str | None:
-        try:
-            groups = self._client.xinfo_groups(stream)
-        except redis.ResponseError:
-            return None
-        for entry in groups:
-            if entry.get("name") == group:
-                return entry.get("last-delivered-id")
-        return None
-
     def close(self) -> None:
         self._client.close()
 

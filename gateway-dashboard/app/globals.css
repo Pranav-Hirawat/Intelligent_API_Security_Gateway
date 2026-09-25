@@ -54,8 +54,6 @@
   --sig-brute: #ffab3d;
   --sig-spray: #ff7043;
   --sig-enum-trav: #35b3a0;
-  --sig-traversal: #3f97b8;
-  --sig-enum: #2fd48f;
   --sig-reputation: #8a97a8;
   --sig-objenum: #b58cff;
   --sig-ownership: #ff8fb1;
@@ -113,8 +111,6 @@
   --sig-brute: #a4680b;
   --sig-spray: #c04a20;
   --sig-enum-trav: #1d7162;
-  --sig-traversal: #1e5a70;
-  --sig-enum: #0f8a5c;
   --sig-reputation: #5e6b7a;
   --sig-objenum: #6b3fb8;
   --sig-ownership: #b3265a;
@@ -141,17 +137,13 @@
   --space-4: 16px;
   --space-5: 30px;
   --space-6: 32px;
-  --space-7: 48px;
 
   /* The mockup uses zero radius everywhere -- every button/card/input/tag is
      a sharp rectangle. Two tokens stay (rather than deleting them and
      hardcoding 0 at each call site) so a future direction change is one
-     line, not a re-sweep. --radius-full is unchanged: the mockup's map
-     legend dots are still true circles even though its status dots and its
-     toggle switch are square -- the one deliberate circular exception. */
+     line, not a re-sweep. */
   --radius-sm: 0; /* inputs, buttons, tags, chips, small controls */
   --radius-md: 0; /* cards, panels, modals, toolbars */
-  --radius-full: 999px; /* the map legend's circular swatches -- the one exception */
 
   /* Sizes pulled from the mockup's own scale (its h1/card-h2/stat-number/
      hero values), not invented. Weight is separate below since the two vary
@@ -276,21 +268,12 @@ main > * + * {
   font-weight: 600;
 }
 
-.top-meta,
 .empty,
 .card-head span,
 .metric small,
 .pct,
 .map-internal span {
   color: var(--muted);
-}
-
-.top-meta {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
 }
 
 /* --- navigation --------------------------------------------------------- */
@@ -1076,15 +1059,13 @@ a { color: var(--accent); }
   align-content: start;
 }
 
-.signal-list,
-.ip-list {
+.signal-list {
   list-style: none;
   margin: 0;
   padding: var(--space-2) var(--space-3) var(--space-3);
 }
 
-.signal-list li,
-.ip-list li {
+.signal-list li {
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -1095,8 +1076,7 @@ a { color: var(--accent); }
   font-size: 13px;
 }
 
-.signal-list li:last-child,
-.ip-list li:last-child {
+.signal-list li:last-child {
   border-bottom: 0;
 }
 
@@ -1110,17 +1090,11 @@ a { color: var(--accent); }
   flex: 1;
 }
 
-.ip-list code,
 .mono,
 .method,
 .map-internal code {
   font-family: ui-monospace, "Cascadia Mono", "SFMono-Regular", Menlo, Consolas, monospace;
   font-size: 12px;
-}
-
-.ip-list span {
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
 }
 
 /* Detected signal types (Overview) -- each row carries its own proportional
@@ -1248,111 +1222,6 @@ a { color: var(--accent); }
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--faint);
-}
-
-/* Signals page: one dense table, detector per row. Same grid on the head
-   and every row so columns stay aligned regardless of how much text a
-   detector's rule/scope line runs to. */
-.signal-table {
-  display: flex;
-  flex-direction: column;
-}
-
-.signal-row {
-  display: grid;
-  /* Every row is its own grid. Fixed utility columns keep a switch or a
-     short value from changing the column positions relative to the header. */
-  grid-template-columns: minmax(0, 1fr) 120px 140px 110px 74px;
-  gap: 18px;
-  align-items: center;
-  padding: 16px 22px;
-  border-bottom: 1px solid var(--line);
-}
-
-.signal-row > :not(:first-child) {
-  justify-self: start;
-}
-
-.signal-row:last-child {
-  border-bottom: 0;
-}
-
-.signal-row:not(.signal-row-head):hover {
-  background: var(--bg-elev-2);
-}
-
-.signal-row-head {
-  padding: 12px 22px;
-  background: var(--bg-elev-2);
-  border-bottom: 2px solid var(--line-2);
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--faint);
-}
-
-.signal-detector {
-  display: flex;
-  gap: 14px;
-  min-width: 0;
-}
-
-.signal-bar {
-  width: 3px;
-  flex: none;
-  align-self: stretch;
-}
-
-.signal-name {
-  font-size: 14.5px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-}
-
-.signal-row.off .signal-name {
-  color: var(--muted);
-}
-
-.signal-rule {
-  margin-top: 4px;
-  font-size: 11.5px;
-  color: var(--muted);
-}
-
-.signal-scope {
-  margin-top: 4px;
-  font-size: 11.5px;
-  color: var(--faint);
-}
-
-.signal-alerts {
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.signal-threshold {
-  font-size: 12.5px;
-  color: var(--muted);
-}
-
-.signal-foot {
-  display: flex;
-  align-items: center;
-  padding: 14px 22px;
-  font-size: 12px;
-  color: var(--faint);
-}
-
-@media (max-width: 980px) {
-  .signal-row {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 8px;
-  }
-
-  .signal-row-head {
-    display: none;
-  }
 }
 
 /* The one card per page that's the actual reason you're here -- Overview's
@@ -2109,16 +1978,8 @@ tbody tr:hover td {
     overflow-x: auto;
   }
 
-  .top-actions {
-    margin-left: auto;
-  }
-
   .campaign-grid {
     grid-template-columns: 1fr;
-  }
-
-  .top-meta {
-    margin-left: 0;
   }
 
   .map-internal {
@@ -2219,22 +2080,6 @@ tbody tr:hover td {
 }
 
 /* --- destructive actions ------------------------------------------------- */
-
-.danger-zone {
-  border-color: color-mix(in srgb, var(--bad) 45%, var(--line));
-}
-
-.danger-zone .form-note {
-  padding: 0 12px;
-}
-
-.danger-zone .form-note:first-of-type {
-  padding-top: 10px;
-}
-
-.danger-zone .card-head h2 {
-  color: var(--bad);
-}
 
 .act.danger {
   border-color: color-mix(in srgb, var(--bad) 55%, var(--line));
@@ -2449,24 +2294,6 @@ tbody tr:hover td {
    what it actually does, and the save action parked in a bar that stays put
    while you scroll through them. */
 
-.settings-bar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  margin: 0 0 14px;
-  padding: 10px 14px;
-  background: var(--bg-elev);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-}
-
-.settings-bar .grow {
-  flex: 1;
-}
-
 /* Kept on Settings because clearing the console is an administrative action,
    not a navigation control. Its muted red distinguishes it from applying an
    enforcement change without making it look like an active alert.
@@ -2492,12 +2319,6 @@ tbody tr:hover td {
   border-color: color-mix(in srgb, var(--bad) 55%, var(--line));
 }
 
-.settings-bar .unsaved {
-  color: var(--warn, #c98a2b);
-  font-size: 12px;
-  font-style: normal;
-}
-
 .pill {
   padding: 3px 9px;
   border: 1px solid var(--line);
@@ -2515,113 +2336,10 @@ tbody tr:hover td {
   color: var(--accent);
 }
 
-.settings-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 14px;
-  align-items: start;
-}
-
-.settings-card.wide {
-  grid-column: 1 / -1;
-}
-
-.card-note {
-  margin: 0 0 12px;
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.5;
-}
-
-.settings-fields {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
 /* Overrides the row layout .field has elsewhere: these fields carry a hint
    under the control, so they stack. */
-.settings-fields .field {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 4px;
-}
-
-.settings-fields .field-label {
-  color: var(--text);
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.settings-fields .field small {
-  color: var(--muted);
-  font-size: 11px;
-  line-height: 1.5;
-}
-
-.settings-fields input[type="text"],
-.settings-fields input[type="number"],
-.settings-fields textarea {
-  padding: 6px 8px;
-  border: 1px solid var(--line);
-  border-radius: 0;
-  background: var(--bg);
-  color: var(--text);
-  font: inherit;
-  font-size: 12px;
-  width: 100%;
-}
-
-.settings-fields textarea {
-  font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace);
-  line-height: 1.6;
-  resize: vertical;
-}
-
-.settings-fields input:focus,
-.settings-fields textarea:focus {
-  border-color: var(--accent);
-}
-
-.settings-fields .check {
-  color: var(--text);
-  font-size: 12px;
-  gap: 8px;
-  cursor: pointer;
-}
-
-.checkrow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  padding: 2px 0;
-}
-
-.checkrow .check {
-  color: var(--text);
-  gap: 6px;
-  cursor: pointer;
-}
-
-@media (max-width: 640px) {
-  .settings-bar {
-    flex-wrap: wrap;
-  }
-  .settings-bar .grow {
-    display: none;
-  }
-}
-
 /* A note attached to a control rather than to a whole card — used where a
    toggle changes what another field means. */
-.settings-fields .field-note {
-  margin-top: -6px;
-  color: var(--muted);
-  font-size: 11px;
-  line-height: 1.5;
-}
-
 /* Protection combines the former Signals inventory with the tunables it
    describes. Cards answer the operational question first; detailed inputs
    stay available but do not turn the normal scan into a wall of forms. */
@@ -2810,23 +2528,6 @@ tbody tr:hover td {
 /* Boot-time server wiring, reported not edited -- same card shell as the
    editable ones so it doesn't read as a broken/missing section, but no
    inputs, so nothing here can be mistaken for a live control. */
-.readonly-fields {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 10px 16px;
-  margin: 0;
-}
-.readonly-fields dt {
-  color: var(--muted);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-.readonly-fields dd {
-  margin: 2px 0 0;
-  font-size: 13px;
-}
-
 /* Adaptive starts with the enforcement boundary. Tuning comes later so the
    operator does not mistake learning settings for permission to enforce. */
 .mode-overview { margin-bottom: 14px; }
