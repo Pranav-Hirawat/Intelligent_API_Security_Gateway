@@ -200,12 +200,11 @@ test("the address view only shows that address", { skip }, async () => {
   assert.ok(!JSON.stringify(body).includes("203.0.113.50"), "another address's events leaked in");
 });
 
-// KNOWN BUG, found by this test: the admin routes reset campaign_id_seq inside
-// their transaction and swallow its error. Before the control plane has ever
-// run the sequence does not exist, that error aborts the transaction, COMMIT
-// quietly becomes a rollback, and the route still reports the rows as cleared.
+// Before the control plane has ever run there is no campaign_id_seq. Resetting
+// it used to fail inside the transaction with the error swallowed, so COMMIT
+// became a rollback and the route reported rows cleared that were still there.
 test("a clear before the control plane ever ran really clears", {
-  skip: "known bug: a missing campaign_id_seq rolls the truncate back while reporting success",
+  skip: skip || (pgUrl ? false : "set IASG_TEST_POSTGRES_URL"),
 }, async () => {
   await fresh();
   const pool = await schema();

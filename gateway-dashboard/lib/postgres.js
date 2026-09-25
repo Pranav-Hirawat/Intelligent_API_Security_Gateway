@@ -45,12 +45,18 @@ export async function truncateTables(tables, failure = {}) {
       const { rows } = await client.query(`SELECT count(*)::int AS n FROM ${table}`);
       before[table] = rows[0].n;
     }
+    // The sequence only exists once the control plane has run, and a clear
+    // before it ever has is still a valid clear. Asked first rather than
+    // tolerated as an error inside the transaction: any failed statement aborts
+    // a Postgres transaction, COMMIT then silently rolls back, and the rows
+    // this reports as cleared would all still be there.
+    const { rows: [sequence] } = await client.query(
+      "SELECT to_regclass('campaign_id_seq') IS NOT NULL AS present",
+    );
     // One transaction: a half-cleared record is worse than either state.
     await client.query("BEGIN");
     await client.query(`TRUNCATE ${tables.join(", ")}`);
-    // Non-fatal: the sequence only exists once the control plane has run, and a
-    // clear before it ever has is still a valid clear.
-    await client.query("SELECT setval('campaign_id_seq', 1, false)").catch(() => {});
+    if (sequence.present) await client.query("SELECT setval('campaign_id_seq', 1, false)");
     await client.query("COMMIT");
     return { ok: true, cleared: before };
   } catch (err) {
