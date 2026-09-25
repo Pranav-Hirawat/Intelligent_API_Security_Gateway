@@ -49,12 +49,12 @@ export default function PolicyPage() {
     }
   }
 
-  function removePolicy(policy) {
+  async function removePolicy(policy) {
     if (!window.confirm(
       `Remove the active ${actionLabel(policy.action)} policy for ${policy.ip}? ` +
       "This takes effect immediately. The agent can recreate it if the campaign remains active.",
     )) return;
-    deletePolicy(policy.ip);
+    await deletePolicy(policy.ip);
   }
 
   return (
@@ -128,7 +128,7 @@ export default function PolicyPage() {
                     <tr key={policy.policyId || `${policy.ip}-${policy.method}-${policy.routeTemplate}`}>
                       <td className="mono">{String(index + 1).padStart(2, "0")}</td>
                       <td>
-                        <Link href={`/events?q=${encodeURIComponent(policy.ip)}`} className="mono">
+                        <Link href={`/events?ip=${encodeURIComponent(policy.ip)}`} className="mono">
                           {policy.ip}
                         </Link>
                       </td>

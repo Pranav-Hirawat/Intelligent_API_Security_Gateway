@@ -3,8 +3,8 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { PageHead } from "@/app/ui/chrome";
-import { isValidIp, matchesEvent, signalMeta, SIGNAL_OPTIONS } from "@/app/ui/format";
-import { EventTable, ExportMenu, IpFilterField, Loading, SegmentedControl, SnapshotButton } from "@/app/ui/parts";
+import { isValidIp, signalMeta } from "@/app/ui/format";
+import { EventTable, ExportMenu, Loading, SegmentedControl, SnapshotButton } from "@/app/ui/parts";
 import { EVENT_COLUMNS } from "@/app/ui/export";
 import { useLive } from "@/app/ui/store";
 
@@ -30,6 +30,12 @@ const RANGES = [
   { label: "24h", ms: 24 * 60 * 60_000 },
 ];
 
+function optionsFrom(rows, valueFor, selected) {
+  const values = new Set(rows.map(valueFor).filter(Boolean));
+  if (selected) values.add(selected);
+  return [...values].sort((a, b) => a.localeCompare(b));
+}
+
 function EventsView() {
   const { busy, instruct, paused, setPaused, sources } = useLive();
   const params = useSearchParams();
@@ -48,9 +54,13 @@ function EventsView() {
     return map;
   }, [sources]);
 
-  const [query, setQuery] = useState(params.get("q") || "");
+  const legacyQuery = params.get("q") || "";
   const [alertsOnly, setAlertsOnly] = useState(params.get("alerts") === "1");
-  const [ip, setIp] = useState(params.get("ip") || "");
+  const [ip, setIp] = useState(params.get("ip") || (isValidIp(legacyQuery) ? legacyQuery : ""));
+  const [path, setPath] = useState(params.get("path") || "");
+  const [method, setMethod] = useState(params.get("method") || "");
+  const [userAgent, setUserAgent] = useState(params.get("agent") || "");
+  const [signal, setSignal] = useState(params.get("signal") || "");
   const [limit, setLimit] = useState(250);
   const [rangeMs, setRangeMs] = useState(0);
   const [frozen, setFrozen] = useState(false);
@@ -65,29 +75,35 @@ function EventsView() {
 
   // Arriving from a campaign, a policy row or a signal should land pre-filtered.
   useEffect(() => {
-    setQuery(params.get("q") || "");
     setAlertsOnly(params.get("alerts") === "1");
-    setIp(params.get("ip") || "");
+    const q = params.get("q") || "";
+    setIp(params.get("ip") || (isValidIp(q) ? q : ""));
+    setPath(params.get("path") || "");
+    setMethod(params.get("method") || "");
+    setUserAgent(params.get("agent") || "");
+    setSignal(params.get("signal") || "");
   }, [params]);
 
   // Filters live in the URL, not just component state -- refreshing, sharing
   // a link, or using the browser's back button (after following a row to an
-  // IP's own page) all have to land back on the same filtered view. Only a
-  // valid ip is written: an in-progress, not-yet-valid keystroke shouldn't
-  // spam history or query the server with garbage.
+  // IP's own page) all have to land back on the same filtered view. Values
+  // come from the loaded evidence, so every URL filter is a known value.
   useEffect(() => {
     const next = new URLSearchParams();
-    if (query) next.set("q", query);
     // Raw traffic is the default. Keep the query parameter only when an
     // operator explicitly narrows the view to alerts.
     if (alertsOnly) next.set("alerts", "1");
-    if (ip && isValidIp(ip)) next.set("ip", ip);
+    if (ip) next.set("ip", ip);
+    if (path) next.set("path", path);
+    if (method) next.set("method", method);
+    if (userAgent) next.set("agent", userAgent);
+    if (signal) next.set("signal", signal);
     const search = next.toString();
     router.replace(search ? `${pathname}?${search}` : pathname, { scroll: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, alertsOnly, ip]);
+  }, [alertsOnly, ip, method, path, signal, userAgent]);
 
-  const effectiveIp = ip && isValidIp(ip) ? ip : "";
+  const effectiveIp = ip;
 
   const load = useCallback(
     async (size) => {
@@ -155,11 +171,21 @@ function EventsView() {
       if (effectiveIp && e.ip !== effectiveIp) return false;
       if (alertsOnly && !e.fired?.length) return false;
       if (floor && new Date(e.ts).getTime() < floor) return false;
-      return matchesEvent(e, query);
+      if (path && e.path !== path) return false;
+      if (method && e.method !== method) return false;
+      if (userAgent && e.userAgent !== userAgent) return false;
+      return !signal || e.fired?.includes(signal);
     });
-  }, [rows, query, alertsOnly, rangeMs, effectiveIp]);
+  }, [rows, alertsOnly, method, path, rangeMs, effectiveIp, signal, userAgent]);
 
   const ips = useMemo(() => [...new Set(shown.map((e) => e.ip).filter(Boolean))], [shown]);
+  const filterOptions = useMemo(() => ({
+    ips: optionsFrom(rows, (event) => event.ip, ip),
+    paths: optionsFrom(rows, (event) => event.path, path),
+    methods: optionsFrom(rows, (event) => event.method, method),
+    userAgents: optionsFrom(rows, (event) => event.userAgent, userAgent),
+    signals: optionsFrom(rows.flatMap((event) => event.fired || []), (name) => name, signal),
+  }), [rows, ip, method, path, signal, userAgent]);
 
   const signals = useMemo(() => {
     const counts = {};
@@ -167,7 +193,7 @@ function EventsView() {
     return Object.entries(counts).sort((a, b) => b[1] - a[1]);
   }, [shown]);
 
-  const filtered = query || alertsOnly || rangeMs || ip;
+  const filtered = alertsOnly || rangeMs || ip || path || method || userAgent || signal;
 
   // Awaited by SnapshotButton before/after it captures snapRef -- see the
   // SNAPSHOT_ROW_CAP comment above. A frame's wait lets the capped table
@@ -214,25 +240,41 @@ function EventsView() {
       </PageHead>
 
       <div className="toolbar">
-        <input
-          type="search"
-          className="search wide"
-          placeholder="Filter by path, method, user agent or signal…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-        <IpFilterField value={ip} onChange={setIp} />
-        <select
-          value={SIGNAL_OPTIONS.includes(query) ? query : ""}
-          onChange={(e) => setQuery(e.target.value)}
-        >
-          <option value="">All signals</option>
-          {SIGNAL_OPTIONS.map((label) => (
-            <option key={label} value={label}>
-              {label}
-            </option>
-          ))}
-        </select>
+        <label className="event-filter">
+          <span>IP</span>
+          <select value={ip} onChange={(event) => setIp(event.target.value)}>
+            <option value="">All IPs</option>
+            {filterOptions.ips.map((value) => <option key={value} value={value}>{value}</option>)}
+          </select>
+        </label>
+        <label className="event-filter">
+          <span>Path</span>
+          <select value={path} onChange={(event) => setPath(event.target.value)}>
+            <option value="">All paths</option>
+            {filterOptions.paths.map((value) => <option key={value} value={value}>{value}</option>)}
+          </select>
+        </label>
+        <label className="event-filter">
+          <span>Method</span>
+          <select value={method} onChange={(event) => setMethod(event.target.value)}>
+            <option value="">All methods</option>
+            {filterOptions.methods.map((value) => <option key={value} value={value}>{value}</option>)}
+          </select>
+        </label>
+        <label className="event-filter">
+          <span>User agent</span>
+          <select value={userAgent} onChange={(event) => setUserAgent(event.target.value)}>
+            <option value="">All user agents</option>
+            {filterOptions.userAgents.map((value) => <option key={value} value={value}>{value}</option>)}
+          </select>
+        </label>
+        <label className="event-filter">
+          <span>Signal</span>
+          <select value={signal} onChange={(event) => setSignal(event.target.value)}>
+            <option value="">All signals</option>
+            {filterOptions.signals.map((value) => <option key={value} value={value}>{signalMeta(value).label}</option>)}
+          </select>
+        </label>
         <label className="check">
           <input
             type="checkbox"
@@ -246,10 +288,13 @@ function EventsView() {
             type="button"
             className="act"
             onClick={() => {
-              setQuery("");
               setAlertsOnly(false);
               setRangeMs(0);
               setIp("");
+              setPath("");
+              setMethod("");
+              setUserAgent("");
+              setSignal("");
             }}
           >
             clear filters
@@ -321,7 +366,7 @@ function EventsView() {
                   key={name}
                   type="button"
                   className="chip"
-                  onClick={() => setQuery(meta.label)}
+                  onClick={() => setSignal(name)}
                 >
                   <span className="swatch" style={{ background: meta.color }} />
                   {meta.label} <em>{count}</em>
@@ -341,7 +386,7 @@ function EventsView() {
           empty={
             rows.length
               ? "No events match this filter."
-              : "No events. Send traffic through the gateway on port 8082, or seed evidence."
+              : "No events yet."
           }
         />
         {capturingSnapshot && shown.length > SNAPSHOT_ROW_CAP ? (

@@ -258,7 +258,7 @@ export const userApi = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       })
-    } catch (e) {
+    } catch {
       // fetch() throwing here doesn't only mean "the API is down" -- a
       // refusal the gateway wrote itself and didn't (or couldn't) mark with
       // CORS for this origin looks identical to the browser: an opaque

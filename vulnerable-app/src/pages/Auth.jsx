@@ -83,7 +83,7 @@ export default function Auth() {
             <input
               type="text"
               className={`form-input ${errors.email ? 'error' : ''}`}
-              placeholder="jane@example.com"
+              placeholder="you@example.com"
               value={form.email}
               onChange={(e) => set('email', e.target.value)}
               autoComplete="email"
@@ -126,15 +126,6 @@ export default function Auth() {
             }
           </button>
         </form>
-
-        {!isRegister && (
-          <p className="auth-hint">
-            Demo accounts (passwords are checked by the API seed, not the browser):
-            <br /><code>jane@example.com</code>, <code>john_doe</code>, <code>user1</code>
-            <br />Admin: <code>admin@shopforge.com</code>
-            <br />Jane owns orders 1, 6, 11… Try opening <code>/orders/2</code>.
-          </p>
-        )}
       </div>
     </div>
   )

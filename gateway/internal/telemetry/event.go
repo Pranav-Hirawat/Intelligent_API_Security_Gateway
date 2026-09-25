@@ -38,15 +38,18 @@ type Event struct {
 	// indistinguishable from one walking twenty unrelated paths.
 	RouteTemplate string `json:"routeTemplate"`
 
-	Query     string             `json:"query,omitempty"`
-	Status    int                `json:"status"`
-	UserAgent string             `json:"userAgent,omitempty"`
-	Decision  string             `json:"decision"` // allow, throttle, temp_block, or escalate
-	Policy    *policy.Match      `json:"policy,omitempty"`
-	RiskScore int                `json:"riskScore"`
-	Fired     []string           `json:"fired"`
-	Signals   []signals.Evidence `json:"signals"`
-	Snippet   string             `json:"snippet,omitempty"`
+	Query  string `json:"query,omitempty"`
+	Status int    `json:"status"`
+	// RetryAfter preserves the gateway's rate-limit guidance for the console.
+	// Old events omit it rather than treating an absent header as zero seconds.
+	RetryAfter string             `json:"retryAfter,omitempty"`
+	UserAgent  string             `json:"userAgent,omitempty"`
+	Decision   string             `json:"decision"` // allow, throttle, temp_block, or escalate
+	Policy     *policy.Match      `json:"policy,omitempty"`
+	RiskScore  int                `json:"riskScore"`
+	Fired      []string           `json:"fired"`
+	Signals    []signals.Evidence `json:"signals"`
+	Snippet    string             `json:"snippet,omitempty"`
 
 	// ResponseOrigin says who wrote Status: the backend, or the gateway
 	// answering by itself. Derived from whether the backend was actually

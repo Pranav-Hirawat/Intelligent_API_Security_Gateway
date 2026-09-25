@@ -35,10 +35,9 @@ app.use('/api', orderRoutes);
 app.use('/', demoResourceRoutes);
 
 // 🔥 Start server FIRST
-app.listen(PORT, async () => {
+async function start() {
 console.log('===========================================');
-console.log(`Vulnerable Backend listening on port ${PORT}`);
-console.log('Initializing database in background...');
+console.log('Initializing database...');
 console.log('===========================================');
 
 // 🔥 Init DB without crashing server
@@ -46,7 +45,14 @@ try {
 await initDb();
 console.log('Database initialized successfully');
 } catch (error) {
-console.error('Database init failed (non-blocking):', error.message);
+console.error('Database initialization failed:', error.message);
+process.exit(1);
 }
+
+app.listen(PORT, () => {
+console.log(`Vulnerable Backend listening on port ${PORT}`);
 });
+}
+
+start();
 

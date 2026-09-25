@@ -63,7 +63,7 @@ the reset, settings, and expected-response prerequisites.
 | `9-Control-plane campaign correlation.jmx` | Three-IP reconnaissance correlation. |
 | `10-Monitor manual and automatic modes.jmx`; `11-Policy enforcement monitor throttle temporary block escalate.jmx` | Operator modes, approval, and policy outcomes. |
 | `12-Adaptive rate limiting without attack signature.jmx` | A valid-traffic adaptive throttle; it requires the documented adaptive settings. |
-| `14-bola_demo.jmx` | BOLA ownership protection, object enumeration, and direct-backend comparison. |
+| `14-BOLA ownership and object-enumeration protection.jmx` | BOLA ownership protection, object enumeration, and direct-backend comparison. |
 
 ## Close and recover
 

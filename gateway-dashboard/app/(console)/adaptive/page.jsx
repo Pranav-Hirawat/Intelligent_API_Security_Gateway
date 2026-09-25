@@ -18,6 +18,8 @@ export default function AdaptivePage() {
   const [draft, setDraft] = useState(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
+  const [advancedSection, setAdvancedSection] = useState("guardrails");
+  const [confirmAdvancedSave, setConfirmAdvancedSave] = useState(false);
   const [override, setOverride] = useState({
     target_identity: "",
     action: "temp_block",
@@ -56,10 +58,14 @@ export default function AdaptivePage() {
     });
     const value = await response.json();
     setBusy("");
-    if (!response.ok) return setError(value.error || "settings rejected");
+    if (!response.ok) {
+      setError(value.error || "settings rejected");
+      return false;
+    }
     setData((current) => ({ ...current, config: value.config }));
     setDraft(structuredClone(value.config));
     await load();
+    return true;
   }
 
   function saveMode() {
@@ -114,11 +120,14 @@ export default function AdaptivePage() {
     setDraft((current) => ({ ...current, [section]: { ...current[section], [name]: value } }));
   }
 
+  async function saveAdvancedSettings() {
+    if (await saveConfig(draft, "advanced")) setConfirmAdvancedSave(false);
+  }
+
   return (
     <>
       <PageHead title="Adaptive enforcement">
-        Learning, advisory scoring, and campaign correlation operate in every mode. The
-        selected enforcement mode changes only whether a recommendation may write a gateway policy.
+        Choose how approved recommendations may be enforced.
       </PageHead>
 
       {error ? <p className="notice bad">{error}</p> : null}
@@ -155,19 +164,12 @@ export default function AdaptivePage() {
           </fieldset>
 
           <div className="mode-summary">
-            <p>{effectiveCopy.behaviour}</p>
-            {effectiveMode === "automatic" ? (
-              <p>
-                <b>Automatic bounded enforcement.</b> Maximum automatic action:{" "}
-                {actionLabel(draft.guardrails.maximum_automatic_action)}. Maximum TTL:{" "}
-                {draft.guardrails.maximum_policy_duration_seconds} seconds.
-              </p>
-            ) : null}
-            <p>
-              Compact safety guardrails: deterministic gateway evidence is required unless the
-              explicitly enabled, ready-baseline throttle path applies; every policy is time-bounded;
-              and manual emergency overrides take precedence.
-            </p>
+            <span>{effectiveCopy.behaviour}</span>
+            <span>
+              Limit: {actionLabel(draft.guardrails.maximum_automatic_action)} ·{" "}
+              {draft.guardrails.maximum_policy_duration_seconds}s max TTL
+            </span>
+            <span>Every policy expires; manual overrides take precedence.</span>
           </div>
 
           <button
@@ -425,12 +427,30 @@ export default function AdaptivePage() {
         <details className="card advanced-settings">
           <summary>Advanced settings</summary>
           <p className="section-note">
-            Risk weights, detector points, and baseline tuning stay out of the operating screen.
-            Saving retains PostgreSQL versioning and optimistic concurrency.
+            Tune one category at a time. Changes are versioned and checked before saving.
           </p>
 
+          <div className="advanced-tabs" role="tablist" aria-label="Advanced setting categories">
+            {[
+              ["guardrails", "Policy guardrails"],
+              ["baseline", "Baseline learning"],
+              ["risk", "Risk tuning"],
+            ].map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                role="tab"
+                aria-selected={advancedSection === value}
+                className={advancedSection === value ? "on" : ""}
+                onClick={() => setAdvancedSection(value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
           <div className="advanced-groups">
-            <section>
+            <section hidden={advancedSection !== "guardrails"}>
               <h3>Policy guardrails</h3>
               <div className="guardrail-grid">
                 <Field.Select
@@ -533,7 +553,7 @@ export default function AdaptivePage() {
               </div>
             </section>
 
-            <section>
+            <section hidden={advancedSection !== "baseline"}>
               <h3>Baseline learning</h3>
               <div className="guardrail-grid">
                 <Field.Number
@@ -582,7 +602,7 @@ export default function AdaptivePage() {
               </div>
             </section>
 
-            <section>
+            <section hidden={advancedSection !== "risk"}>
               <h3>Risk and confidence tuning</h3>
               <div className="guardrail-grid">
                 <Field.Number
@@ -623,11 +643,37 @@ export default function AdaptivePage() {
             className="act primary"
             type="button"
             disabled={Boolean(busy)}
-            onClick={() => saveConfig(draft, "advanced")}
+            onClick={() => setConfirmAdvancedSave(true)}
           >
             {busy === "advanced" ? "Saving advanced settings..." : "Save advanced settings"}
           </button>
         </details>
+      ) : null}
+
+      {confirmAdvancedSave ? (
+        <div className="modal-overlay" onMouseDown={() => !busy && setConfirmAdvancedSave(false)}>
+          <section
+            className="modal-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="save-advanced-settings-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <h2 id="save-advanced-settings-title">Save advanced settings?</h2>
+            <p>
+              This updates policy guardrails, baseline learning, and risk tuning for the control
+              plane. The server will reject invalid or outdated changes.
+            </p>
+            <div className="modal-actions">
+              <button type="button" className="act" disabled={Boolean(busy)} onClick={() => setConfirmAdvancedSave(false)}>
+                Cancel
+              </button>
+              <button type="button" className="act primary" disabled={Boolean(busy)} onClick={saveAdvancedSettings}>
+                {busy === "advanced" ? "Saving..." : "Save settings"}
+              </button>
+            </div>
+          </section>
+        </div>
       ) : null}
     </>
   );

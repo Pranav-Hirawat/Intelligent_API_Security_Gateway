@@ -210,7 +210,7 @@ export default function OverviewPage() {
                 <li key={row.name}>
                   <div className="signal-bar-top">
                     <span className="swatch" style={{ background: row.color }} />
-                    <Link href={`/events?q=${encodeURIComponent(row.label)}`}>{row.label}</Link>
+                    <Link href={`/events?signal=${encodeURIComponent(row.name)}`}>{row.label}</Link>
                     <b>
                       {row.count.toLocaleString()} · <span>{row.pct}%</span>
                     </b>
@@ -235,7 +235,7 @@ export default function OverviewPage() {
             <div className="ip-grid">
               {attackerRows.map((row) => (
                 <div className="ip-row" key={row.ip}>
-                  <Link href={`/events?q=${encodeURIComponent(row.ip)}`} className="mono ip-row-addr">
+                  <Link href={`/events?ip=${encodeURIComponent(row.ip)}`} className="mono ip-row-addr">
                     {row.ip}
                     {row.meta ? <span className="meta">{row.meta}</span> : null}
                   </Link>
