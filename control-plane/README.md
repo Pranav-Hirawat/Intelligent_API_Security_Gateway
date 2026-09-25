@@ -299,6 +299,12 @@ the starting recommendation — the checks above run afterwards and are not lear
 a system that could learn its way past its own rails eventually would. Feedback
 cannot authorize enforcement without deterministic evidence.
 
+In practice it is the risk engine's proposed action that moves (`adaptive/risk.py`),
+before the evidence, confidence and ceiling guardrails run. A cycle that used it
+prints a `[learned]` line, and the policy's explanation records `learned_rungs`.
+With the defaults, two consistent "block it" corrections on brute force turn the
+agent's own next answer from a throttle into a temporary block.
+
 Both features are off until configured. With nothing set, the ladder behaves exactly as it
 did before they existed, and a test pins that.
 

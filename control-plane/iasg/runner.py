@@ -218,7 +218,13 @@ class Runner:
         """Decide, check the decision is safe, let a human overrule it, write."""
         # 4. decide -- validated numeric configuration and completed-window
         # facts only. The gateway never waits for this control-plane work.
-        staged = self.adaptive.decisions(campaign, evidence)
+        # What humans have repeatedly done to this kind of campaign. Read before
+        # this cycle's overrides are recorded, so a correction teaches the next
+        # decision rather than rewriting the one it corrected.
+        learned_bias = self.feedback.bias_for(campaign.type)
+        staged = self.adaptive.decisions(campaign, evidence, learned_bias)
+        if learned_bias:
+            result.learned.append(self.feedback.explain(campaign.type))
         decisions = [decision for decision, _, _ in staged]
         eligible = {decision.policy_id: enforce for decision, enforce, _ in staged}
         standing = [
@@ -370,6 +376,9 @@ class Runner:
 def report(result: CycleResult) -> None:
     """Print one cycle in the shape the proposal's demo output describes."""
     print(f"\n[cycle] read {result.evidence_count} events")
+
+    for line in result.learned:
+        print(f"[learned]     {line}")
 
     for decision in result.manual:
         print(f"[human]       {decision.ip} -> {decision.action} ({decision.reason})")
