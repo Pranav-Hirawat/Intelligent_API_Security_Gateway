@@ -213,3 +213,117 @@ test("a clear before the control plane ever ran really clears", {
   assert.equal(body.postgres.ok, true);
   assert.equal((await pool.query("SELECT count(*)::int AS n FROM campaigns")).rows[0].n, 0);
 });
+
+async function addEvents(rows) {
+  const ids = [];
+  for (const row of rows) {
+    ids.push(await redis.xAdd("iasg:events", "*", { event: JSON.stringify({ method: "GET", path: "/api/products", status: 200, fired: [], ...row }) }));
+  }
+  return ids;
+}
+
+const eventsPage = async (query) => (await (await route("events")).GET(new Request(`http://console/api/events?${query}`))).json();
+
+test("paging through events returns every one exactly once, newest first", { skip }, async () => {
+  await redis.flushDb();
+  const ids = await addEvents(Array.from({ length: 23 }, (_, i) => ({ ip: `203.0.113.${i % 3}` })));
+
+  const seen = [];
+  let cursor = "";
+  for (let page = 0; page < 10; page++) {
+    const body = await eventsPage(`limit=5${cursor ? `&before=${cursor}` : ""}`);
+    assert.equal(body.total, 23);
+    seen.push(...body.events.map((e) => e.id));
+    cursor = body.cursor;
+    if (!cursor) break;
+  }
+  assert.deepEqual(seen, [...ids].reverse());
+});
+
+// The stream has no index on address, so a filter scans. The scan per request
+// is bounded, and the cursor must carry it on to an address that only
+// appears far back.
+test("a rare address deep in the stream is reached one bounded page at a time", { skip }, async () => {
+  await redis.flushDb();
+  const [oldest] = await addEvents([{ ip: "198.51.100.77" }]);
+  await addEvents(Array.from({ length: 40 }, () => ({ ip: "203.0.113.1" })));
+
+  let cursor = "";
+  let found = [];
+  let requests = 0;
+  while (!found.length && requests < 10) {
+    const body = await eventsPage(`limit=2&ip=198.51.100.77${cursor ? `&before=${cursor}` : ""}`);
+    requests += 1;
+    assert.equal(body.ip, "198.51.100.77");
+    found = body.events;
+    cursor = body.cursor;
+    if (!found.length) assert.ok(cursor, "the scan stopped with the address still unread");
+  }
+  assert.deepEqual(found.map((e) => e.id), [oldest]);
+  assert.ok(requests > 1, "one request scanned the whole stream; the bound is not holding");
+});
+
+test("a malformed address filter shows everything rather than an error", { skip }, async () => {
+  await redis.flushDb();
+  await addEvents([{ ip: "203.0.113.1" }, { ip: "203.0.113.2" }]);
+  const body = await eventsPage("ip=not-an-ip&limit=-4");
+  assert.equal(body.ip, null);
+  assert.equal(body.events.length, 2);
+});
+
+test("overview: health probes hidden, private sources never looked up, loudest attacker first", { skip }, async () => {
+  await redis.flushDb();
+  await addEvents([
+    { ip: "127.0.0.1", path: "/api/health", status: 200, userAgent: "IASG-Docker-Healthcheck" },
+    { ip: "10.0.0.8" },
+    { ip: "198.51.100.40", fired: ["sql_injection"] },
+    { ip: "198.51.100.41" },
+    { ip: "198.51.100.41" },
+    { ip: "198.51.100.41", fired: ["api_flooding"] },
+    { ip: "198.51.100.40", fired: ["sql_injection"] },
+  ]);
+  const sent = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url, options = {}) => {
+    sent.push(options.body ? JSON.parse(options.body) : String(url));
+    return { ok: false, json: async () => null };
+  };
+  try {
+    const body = await (await (await route("overview")).GET()).json();
+    assert.equal(body.redis, true);
+    assert.ok(!body.events.some((e) => e.path === "/api/health"), "a routine probe was shown");
+    assert.equal(body.stats.requests, 6);
+    assert.deepEqual(body.attackers, [{ ip: "198.51.100.40", alerts: 2 }, { ip: "198.51.100.41", alerts: 1 }]);
+    const lookedUp = sent.flat().filter((item) => typeof item === "string" && item.includes("."));
+    assert.ok(!lookedUp.includes("10.0.0.8"), `a private address left the machine: ${JSON.stringify(sent)}`);
+    assert.equal(body.sources.find((s) => s.ip === "10.0.0.8").city, "Private network");
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+test("the gateway's attacker board wins over the visible window", { skip }, async () => {
+  await redis.flushDb();
+  await addEvents([{ ip: "198.51.100.50", fired: ["sql_injection"] }]);
+  await redis.zAdd("iasg:attackers", [{ score: 9, value: "198.51.100.60" }]);
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok: false, json: async () => null });
+  try {
+    const body = await (await (await route("overview")).GET()).json();
+    assert.deepEqual(body.attackers, [{ ip: "198.51.100.60", alerts: 9 }]);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+test("campaigns: counts what is active and says whether the agent is alive", { skip }, async () => {
+  await redis.flushDb();
+  await redis.set("campaign:1", JSON.stringify({ campaign_id: "1", status: "active" }));
+  await redis.set("campaign:2", JSON.stringify({ campaign_id: "2", status: "contained" }));
+  await redis.set("iasg:heartbeat", JSON.stringify({ at: new Date().toISOString() }));
+  const body = await (await (await route("campaigns")).GET()).json();
+  assert.equal(body.redis, true);
+  assert.equal(body.active, 1);
+  assert.equal(body.campaigns.length, 2);
+  assert.equal(body.heartbeat.alive, true);
+});

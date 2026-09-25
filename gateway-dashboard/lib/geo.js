@@ -1,15 +1,28 @@
+import { BlockList, isIP } from "node:net";
+
+// Ranges that name no one on the public internet. Looking one up would hand an
+// internal address to a third-party service and plot it somewhere meaningless.
+// The RFC 5737 documentation ranges the demo attacks from are left public.
+const NOT_PUBLIC = new BlockList();
+for (const [network, prefix] of [
+  ["0.0.0.0", 8], ["10.0.0.0", 8], ["100.64.0.0", 10], ["127.0.0.0", 8],
+  ["169.254.0.0", 16], ["172.16.0.0", 12], ["192.168.0.0", 16],
+]) {
+  NOT_PUBLIC.addSubnet(network, prefix, "ipv4");
+}
+for (const [network, prefix] of [["::", 127], ["fc00::", 7], ["fe80::", 10]]) {
+  NOT_PUBLIC.addSubnet(network, prefix, "ipv6");
+}
+
+// Anything that is not an address at all counts as private too: the question
+// this answers is "may it leave the machine", and the safe answer is no.
 export function isPrivateIP(ip = "") {
-  if (!ip) return true;
-  if (ip === "127.0.0.1" || ip === "::1" || ip === "localhost") return true;
-  if (ip.startsWith("10.")) return true;
-  if (ip.startsWith("192.168.")) return true;
-  if (ip.startsWith("169.254.")) return true;
-  const m = ip.match(/^172\.(\d+)\./);
-  if (m) {
-    const n = Number(m[1]);
-    return n >= 16 && n <= 31;
-  }
-  return false;
+  if (!ip || ip === "localhost") return true;
+  const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/i.exec(ip);
+  if (mapped) return isPrivateIP(mapped[1]);
+  const family = isIP(ip);
+  if (!family) return true;
+  return NOT_PUBLIC.check(ip, family === 4 ? "ipv4" : "ipv6");
 }
 
 const cache = globalThis.__iasgGeoCache || new Map();

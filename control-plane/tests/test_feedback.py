@@ -11,6 +11,7 @@ which run afterwards and are not learnable.
 from __future__ import annotations
 
 import dataclasses
+import json
 from datetime import datetime, timedelta, timezone
 
 from iasg.adaptive.config import AdaptiveConfig
@@ -329,3 +330,61 @@ def test_an_instruction_cannot_police_an_allowlisted_range_through_the_runner():
 
     assert store.get("policy:198.51.100.7") is None
     assert any("allowlisted" in n for n in result.notes)
+
+
+class TallyTable:
+    """Stands in for the Postgres feedback table: increments happen there."""
+
+    def __init__(self, rows=None):
+        self.rows = rows or {}
+
+    def bump(self, campaign_type, direction):
+        row = self.rows.setdefault(campaign_type, {"up": 0, "down": 0})
+        row[direction] += 1
+
+    def tally(self, campaign_type):
+        return dict(self.rows.get(campaign_type, {}))
+
+    def all(self):
+        return {name: dict(row) for name, row in self.rows.items()}
+
+
+def test_with_a_database_the_count_lives_there_and_the_store_mirrors_it():
+    store, table = MemoryStore(), TallyTable({"Reconnaissance": {"up": 4, "down": 0}})
+    m = FeedbackMemory(store, settings(), persistence=table)
+
+    m.record("Reconnaissance", ACTION_MONITOR, ACTION_THROTTLE)
+
+    assert table.rows["Reconnaissance"]["up"] == 5
+    assert json.loads(store.get("feedback:Reconnaissance")) == {"up": 5, "down": 0}
+    assert m.all() == {"Reconnaissance": {"up": 5, "down": 0}}
+
+
+def test_a_restart_rebuilds_the_mirror_from_the_database():
+    store = MemoryStore()
+    table = TallyTable({"Reconnaissance": {"up": 3, "down": 1}, "Distributed Flood": {"up": 0, "down": 2}})
+
+    assert FeedbackMemory(store, settings(), persistence=table).warm() == 2
+    assert json.loads(store.get("feedback:Distributed Flood")) == {"up": 0, "down": 2}
+    assert FeedbackMemory(MemoryStore(), settings()).warm() == 0
+
+
+def test_a_correction_that_says_nothing_is_not_recorded():
+    store = MemoryStore()
+    m = FeedbackMemory(store, settings())
+    m.record("Reconnaissance", ACTION_THROTTLE, ACTION_THROTTLE)
+    m.record("Reconnaissance", ACTION_THROTTLE, "not-an-action")
+    m.record("", ACTION_MONITOR, ACTION_THROTTLE)
+    assert store.keys("feedback:*") == []
+
+
+def test_a_corrupt_tally_counts_as_nothing_learned():
+    store = MemoryStore()
+    store.set("feedback:Reconnaissance", "{broken")
+    store.set("feedback:Distributed Flood", "[1, 2]")
+    m = FeedbackMemory(store, settings())
+    assert m.bias_for("Reconnaissance") == 0
+    assert m.bias_for("Distributed Flood") == 0
+
+    m.record("Reconnaissance", ACTION_MONITOR, ACTION_THROTTLE)
+    assert json.loads(store.get("feedback:Reconnaissance")) == {"up": 1}
