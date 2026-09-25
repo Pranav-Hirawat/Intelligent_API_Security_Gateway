@@ -75,13 +75,12 @@ export async function POST(request) {
   let redis;
   try {
     redis = await getRedis();
+    // See the module comment: this ordering is what makes a concurrent
+    // control-plane cycle safe. Without the watermark nothing else may run.
+    await redis.set(RESET_WATERMARK_KEY, String(Date.now()));
   } catch (err) {
     return Response.json({ ok: false, error: `redis unavailable: ${err.message}` }, { status: 503 });
   }
-
-  // See the module comment: this ordering is what makes a concurrent
-  // control-plane cycle safe.
-  await redis.set(RESET_WATERMARK_KEY, String(Date.now()));
 
   let redisResult;
   try {
