@@ -34,6 +34,7 @@ def calculate_risk(
     endpoint: EndpointKey | None = None,
     baseline: BaselineSummary | None = None,
     observed_rate: int = 0,
+    learned_bias: int = 0,
 ) -> RiskResult:
     evidence = list(evidence)
     risk = config.risk
@@ -100,6 +101,13 @@ def calculate_risk(
     ) if behavioural_throttle else 0.0
     confidence = max(confidence, behavioural_confidence)
     candidate = ACTION_THROTTLE if behavioural_throttle else _candidate(total, config)
+    # What humans keep doing to this kind of campaign moves the proposal, never
+    # the checks: _guard runs after it, so a learned push still needs the
+    # evidence, the confidence and the ceiling any other proposal needs. The
+    # behavioural path is the operator's explicit opt-in and is not learnable.
+    learned_rungs = 0
+    if not behavioural_throttle:
+        candidate, learned_rungs = _learned(candidate, learned_bias)
     action, guardrail_reasons = _guard(
         candidate,
         confidence,
@@ -142,6 +150,7 @@ def calculate_risk(
             "risk_score": round(total, 2),
             "confidence": round(confidence, 3),
             "candidate_action": candidate,
+            "learned_rungs": learned_rungs,
             "selected_action": action,
             "behavioural_throttle_authorized": behavioural_throttle,
             "behavioural_throttle_minimum_deviation": guard.behavioural_throttle_minimum_deviation,
@@ -161,6 +170,18 @@ def _candidate(score: float, config: AdaptiveConfig) -> str:
     if score >= config.risk.throttle_score:
         return ACTION_THROTTLE
     return ACTION_MONITOR
+
+
+def _learned(candidate: str, bias: int) -> tuple[str, int]:
+    """Move a proposal by the learned bias, one rung at most, ever.
+
+    Clamped rather than trusted: the bias comes from stored state, and a run of
+    unusual corrections must not walk a campaign from monitor to block.
+    """
+    step = max(-1, min(1, int(bias or 0)))
+    start = AUTO_ACTIONS.index(candidate)
+    moved = max(0, min(len(AUTO_ACTIONS) - 1, start + step))
+    return AUTO_ACTIONS[moved], moved - start
 
 
 def _guard(

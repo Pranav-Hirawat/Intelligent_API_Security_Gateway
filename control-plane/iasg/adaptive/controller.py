@@ -126,7 +126,7 @@ class AdaptiveController:
         return recommendations
 
     def decisions(
-        self, campaign: Campaign, evidence: list[Evidence]
+        self, campaign: Campaign, evidence: list[Evidence], learned_bias: int = 0
     ) -> list[tuple[PolicyDecision, bool, str]]:
         staged: list[tuple[PolicyDecision, bool, str]] = []
         for ip in campaign.ips:
@@ -140,6 +140,7 @@ class AdaptiveController:
                 endpoint=context.key if context else None,
                 baseline=context.baseline if context else None,
                 observed_rate=context.observed if context else 0,
+                learned_bias=learned_bias,
             )
             decision = self._decision(ip, campaign, result, context)
             recommendation, enforce, why = self.lifecycle.stage(decision, self.config)
