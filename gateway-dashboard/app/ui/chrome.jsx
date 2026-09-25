@@ -220,6 +220,7 @@ function TypedConfirmControl({
   const [open, setOpen] = useState(false);
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
+  const [dialogVersion, setDialogVersion] = useState(0);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -237,10 +238,17 @@ function TypedConfirmControl({
     // exact state, left by the request-scoped guard against it added there.
     setBusy(false);
     setConfirm("");
+    // Reset owns its dialog state. Forcing a fresh modal instance prevents a
+    // stale focused/disabled input from a completed policy mutation surviving
+    // the route change into this unrelated action.
+    setDialogVersion((version) => version + 1);
     setOpen(true);
   }
 
   function close() {
+    // A fresh dialog must never inherit a disabled state from a request that
+    // completed after the previous dialog closed.
+    setBusy(false);
     setOpen(false);
     setConfirm("");
   }
@@ -305,7 +313,7 @@ function TypedConfirmControl({
 
       {open && typeof document !== "undefined"
         ? createPortal(
-        <div className="modal-overlay" onMouseDown={() => !busy && close()}>
+        <div key={dialogVersion} className="modal-overlay" onMouseDown={() => !busy && close()}>
           <div
             className="modal-card"
             role="dialog"

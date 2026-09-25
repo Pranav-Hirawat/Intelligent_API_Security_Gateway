@@ -660,6 +660,21 @@ main > * + * {
   width: auto;
 }
 
+.event-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 130px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.event-filter select {
+  max-width: 220px;
+  padding: 5px 8px;
+  font-size: 12px;
+}
+
 .bulk {
   display: flex;
   align-items: center;
@@ -1433,6 +1448,12 @@ tbody tr:hover td {
 .status-chip.ok { color: var(--good); background: color-mix(in srgb, var(--good) 13%, transparent); }
 .status-chip.warn { color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, transparent); }
 .status-chip.bad { color: var(--bad); background: var(--row-alert); }
+.status-button {
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+}
+.status-button:hover { outline: 1px solid currentColor; }
 
 .risk-cell {
   display: flex;
@@ -2163,6 +2184,15 @@ tbody tr:hover td {
   gap: 8px;
 }
 
+.event-details-modal { max-width: 820px; max-height: min(760px, calc(100vh - 40px)); overflow: auto; }
+.event-details-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.event-details-head .eyebrow { margin: 0 0 3px; }
+.event-details-signals { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
+.event-details-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0; }
+.event-details-grid > div { padding: 8px 10px; border: 1px solid var(--line); background: var(--bg-head); }
+.event-details-grid dt { color: var(--muted); font-size: 11px; }
+.event-details-grid dd { margin: 3px 0 0; overflow-wrap: anywhere; font-family: ui-monospace, "Cascadia Mono", "SFMono-Regular", Menlo, Consolas, monospace; font-size: 12px; }
+
 /* Policy's manual controls are useful, but they are not part of the normal
    enforcement scan. Keep the table full-width and reveal the human-only work
    in a deliberate, dismissible review surface. */
@@ -2514,16 +2544,19 @@ tbody tr:hover td {
 .mode-card strong { color: var(--text); }
 .mode-card span { font-size: 12px; line-height: 1.45; }
 .mode-card small { margin-top: auto; color: var(--accent); font-weight: 700; }
-.mode-summary { margin: 0 12px 12px; padding: 10px 12px; border-left: 3px solid var(--accent); background: var(--bg-head); }
-.mode-summary p { margin: 0 0 6px; font-size: 13px; line-height: 1.45; }
-.mode-summary p:last-child { margin-bottom: 0; }
+.mode-summary { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0 12px 12px; padding: 10px 12px; border-left: 3px solid var(--accent); background: var(--bg-head); font-size: 12px; line-height: 1.45; }
+.mode-summary span { color: var(--muted); }
+.mode-summary span:first-child { width: 100%; color: var(--text); font-weight: 650; }
 .mode-overview > .act { margin: 0 12px 12px; }
 .section-note { margin: 3px 0 0; color: var(--muted); font-size: 12px; font-weight: 400; line-height: 1.45; }
 .advanced-settings { margin-top: 14px; }
 .advanced-settings > summary { padding: 12px; color: var(--text); cursor: pointer; font-weight: 700; }
 .advanced-settings[open] > summary { border-bottom: 1px solid var(--line); background: var(--bg-head); }
 .advanced-settings > .section-note, .advanced-settings > .act { margin-left: 12px; margin-right: 12px; }
-.advanced-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; padding: 12px; }
+.advanced-tabs { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 12px 0; }
+.advanced-tabs button { padding: 6px 10px; border: 1px solid var(--line); background: var(--bg-elev); color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; }
+.advanced-tabs button.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+.advanced-groups { padding: 12px; }
 .advanced-groups > section { border: 1px solid var(--line); border-radius: 0; }
 .advanced-groups h3 { margin: 0; padding: 10px 12px; border-bottom: 1px solid var(--line); font-size: 13px; }
 .guardrail-grid { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 12px; }
@@ -2539,6 +2572,7 @@ tbody tr:hover td {
   .mode-banner { flex-direction: column; }
   .mode-cards { grid-template-columns: 1fr; }
   .mode-card { min-height: 0; }
+  .event-details-grid { grid-template-columns: 1fr; }
 }
 
 /* One-shot notification for a new escalation, not a status light -- the

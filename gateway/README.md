@@ -43,6 +43,7 @@ make, and *writes* evidence it does not interpret.
 | `sqli_injection.go` | Injection patterns in path, decoded query values and body |
 | `enumeration_path_traversal.go` | Directory walking and resource enumeration |
 | `unknown_route_scanning.go` | A client walking several paths the route table does not recognise |
+| `object_enumeration.go` | A client walking many object IDs on a protected endpoint (BOLA / IDOR) |
 | `ip_reputation.go` | Addresses already known to be malicious |
 
 Reputation is the odd one out, and deliberately so. The other five are behavioural and

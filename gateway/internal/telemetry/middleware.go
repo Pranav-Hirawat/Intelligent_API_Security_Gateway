@@ -169,6 +169,7 @@ func (rc *Recorder) Middleware(next http.Handler) http.Handler {
 				RouteTemplate: routeTemplate,
 				Query:         RedactQuery(r.URL.RawQuery),
 				Status:        status,
+				RetryAfter:    rec.Header().Get("Retry-After"),
 				UserAgent:     truncate(r.UserAgent(), 256),
 				Decision:      policy.Applied(r),
 				Policy:        match,

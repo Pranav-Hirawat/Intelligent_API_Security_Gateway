@@ -133,8 +133,8 @@ The storefront (`http://localhost:5175`) has a Backend / Gateway switch in the
 navbar -- it decides which of the two URLs below every API call goes to, so
 the leak and the block can both be shown from the same page:
 
-1. Sign in as `jane@example.com` / `user123` (see the login page for other
-   seeded accounts). Switch to **Gateway**.
+1. Sign in as Jane Cooper using the credentials in [USERS.md](USERS.md).
+   Switch to **Gateway**.
 2. Open **My Orders**. Jane owns 1, 6, 11, 16, 21, 26, 31, 36. Open one --
    it's hers.
 3. Edit the address bar to `/orders/2`. Through the gateway: "Order not
@@ -151,7 +151,7 @@ gateway; without it both fall back to the same public demo value.
 
 ```bash
 TOKEN=$(curl -s http://localhost:5002/api/login -H 'Content-Type: application/json' \
-  -d '{"email":"jane@example.com","password":"user123"}' | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
+  -d '{"email":"<email from USERS.md>","password":"<password from USERS.md>"}' | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
 
 curl -s http://localhost:5002/api/orders -H "Authorization: Bearer $TOKEN"        # her orders
 curl -s http://localhost:5002/api/orders/2 -H "Authorization: Bearer $TOKEN"      # someone else's: 200

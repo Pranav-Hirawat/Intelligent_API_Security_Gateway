@@ -73,10 +73,14 @@ POSTGRES_DB=iasg
 VULN_POSTGRES_USER=vuln_user
 VULN_POSTGRES_PASSWORD=vuln_changeme
 VULN_POSTGRES_DB=vuln_app
+
+IASG_JWT_SECRET=change-me-before-anyone-else-uses-this
 ```
 
-The compose file is the only place these are read; `control_plane` and
-`gateway_dashboard` are handed `IASG_POSTGRES_URL` built from them.
+Compose passes the security-system database credentials to `control_plane`
+and `gateway_dashboard` as `IASG_POSTGRES_URL`. The vulnerable database
+values go only to `vulnerable_api`; `IASG_JWT_SECRET` is shared by that API
+and `gateway` for the ownership demonstration.
 
 The control plane's own settings are documented in
 [`../control-plane/.env.example`](../control-plane/.env.example) and read from the

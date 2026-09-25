@@ -26,12 +26,15 @@ turns fired signals into campaign Evidence; another keeps clean traffic long
 enough to finish privacy-safe 60-second windows and endpoint baselines.
 `iasg.evidence.ingest` remains as a fallback for piping old SECURITY ALERT logs.
 
-## The five core mechanisms
+## The four control-plane algorithms
 
-1. **Deterministic attack detectors** emit evidence for known attack shapes.
-2. **Adaptive endpoint baselines** learn trusted normal traffic per method and route.
-3. **Campaign correlation** connects related evidence across addresses and cycles.
-4. **The risk/confidence policy engine** makes a bounded, explainable recommendation.
+Gateway detectors emit input evidence, but they are not control-plane
+algorithms. The control plane runs these four deterministic algorithms:
+
+1. **Adaptive endpoint baseline** learns trusted normal traffic per method and route.
+2. **Campaign correlation** groups related activity across IP addresses.
+3. **Campaign continuation matching** keeps the same incident connected across cycles and IP rotation.
+4. **Weighted risk scoring with guardrails** makes a bounded, explainable recommendation.
 
 IP reputation is supporting evidence, not independent policy authority. Body
 limits, cooldowns, Redis streams, policy TTLs, and token buckets support safe
@@ -39,9 +42,104 @@ enforcement or reliable delivery rather than acting as detection algorithms.
 LLM explanation and assessment run only after policy selection; the default
 `null` provider renders templates offline and cannot affect enforcement.
 
-Read [ALGORITHMS.md](ALGORITHMS.md) for the mechanism-level explanation and
-[`../gateway/docs/adaptive-policy.md`](../gateway/docs/adaptive-policy.md) for
-the baseline, risk/confidence, and policy guardrail contract.
+See [OVERVIEW.md](OVERVIEW.md) for presentation notes and a short algorithm
+summary. [`../gateway/docs/adaptive-policy.md`](../gateway/docs/adaptive-policy.md)
+documents the baseline, risk/confidence, and policy guardrail contract.
+
+## Algorithms and pseudocode
+
+### 1. Rolling Median + MAD Baseline
+
+```text
+FOR each endpoint every minute:
+    count its requests
+
+    IF the traffic window is trusted:
+        add the count to recent history
+        keep only the latest N windows
+
+        normal_rate = median(history)
+        spread = median absolute deviation(history)
+        new_limit = normal_rate + (spread x multiplier)
+        keep new_limit inside minimum and maximum limits
+
+        IF warm-up completed, change is large enough, and cooldown ended:
+            save new_limit as the endpoint baseline
+```
+
+### 2. Weighted Risk Scoring with Guardrails
+
+```text
+FOR each suspicious IP:
+    deterministic_score = strongest detector score
+    add points for repeated detector evidence
+
+    behavioural_score = how far traffic exceeds endpoint baseline
+    campaign_score = campaign confidence x campaign severity
+
+    total_risk =
+        deterministic_score x weight
+        + behavioural_score x weight
+        + campaign_score x weight
+
+    choose action from total_risk:
+        high score -> temporary block
+        medium score -> throttle
+        otherwise -> monitor
+
+    apply safety rules:
+        no real detector evidence -> monitor only
+        too little evidence or confidence -> reduce action
+        maximum automatic action -> never exceed it
+```
+
+### 3. Rule-Based Campaign Correlation with Union-Find Clustering
+
+```text
+FOR each new evidence event:
+    group events by source IP
+    build one activity profile for each IP
+
+FOR each pair of IP profiles:
+    compare endpoint, user agent, attack type, subnet, and activity time
+
+    IF IPs overlap in time AND share at least two identity traits:
+        link both IPs into one group
+
+merge all linked IPs using Union-Find
+
+FOR each group:
+    IF one IP has too little evidence:
+        ignore it as noise
+    OTHERWISE:
+        calculate confidence, attack stages, campaign type, and severity
+
+return campaigns sorted by highest confidence
+```
+
+### 4. Campaign Continuation Matching
+
+```text
+FOR each new campaign:
+    compare it with saved campaigns
+
+    IF enough IP addresses overlap:
+        treat it as the same campaign
+    OTHERWISE IF behaviour signatures match closely and activity is recent:
+        treat it as the same campaign with rotated IP addresses
+    OTHERWISE:
+        create a new campaign
+
+FOR a matching campaign:
+    merge IPs, evidence, stages, and severity
+    increase confidence slightly
+    reset quiet-cycle count
+
+FOR an active campaign not seen this cycle:
+    increase quiet-cycle count
+    IF quiet cycles reach 3:
+        mark it contained
+```
 
 ## Setup
 
@@ -88,7 +186,7 @@ Other options:
 ```bash
 .venv/bin/python -m iasg                  # loop forever, every 30s
 .venv/bin/python -m iasg --once --dry-run # decide everything, write nothing
-.venv/bin/pytest                          # 428 tests (16 skip without Postgres), no Redis needed
+.venv/bin/pytest                          # 310 tests (17 skipped without Postgres), no Redis needed
 ```
 
 Scenarios: `credential-stuffing`, `brute-force`, `flood`, `enumeration`, `path-traversal`,
@@ -251,6 +349,8 @@ there together:
 | `iasg/store/` | Redis access, plus an in-memory fake for tests |
 | `iasg/evidence/consumer.py` | reads the stream via a consumer group |
 | `iasg/evidence/ingest.py` | parses the gateway's `SECURITY ALERT` blocks |
+| `iasg/anomaly/` | parses telemetry and rejects incomplete windows from baseline learning |
+| `iasg/adaptive/` | learns baselines, scores risk, and stages current policy recommendations |
 | `iasg/correlation/` | **groups IPs into campaigns** — union-find over shared traits |
 | `iasg/campaigns/` | memory: campaigns persist, merge, and are reviewed for outcome |
 | `iasg/policy/simulation.py` | is the response safe? collateral checks, run last |

@@ -58,7 +58,7 @@ the Docker stack (`docker compose --profile llm up -d`, see
 [`infra/README.md`](infra/README.md#narration)) or as a native install
 alongside a bare-metal control plane.
 
-See the [control-plane mechanism guide](control-plane/ALGORITHMS.md) and
+See the [control-plane overview](control-plane/OVERVIEW.md) and
 [adaptive-policy documentation](gateway/docs/adaptive-policy.md) for the
 decision boundaries and their safeguards.
 
@@ -551,8 +551,8 @@ stack. The pages worth starting from:
 - [Gateway](gateway/README.md), [control plane](control-plane/README.md),
   [dashboard](gateway-dashboard/README.md), [infra](infra/README.md),
   [testing](testing/README.md)
-- [Every algorithm the agent runs](control-plane/ALGORITHMS.md) ([older
-  file-by-file history](control-plane/GUIDE.md), superseded by the above)
+- [Control-plane algorithm summary](control-plane/OVERVIEW.md) and
+  [full algorithm pseudocode](control-plane/README.md#algorithms-and-pseudocode)
 - [Demo walkthrough](DEMO.md) and [command reference](commands.md)
 
 ## Stopping

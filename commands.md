@@ -62,7 +62,7 @@ Replace `infra_default` if `docker network ls` shows a different
 - `9-Control-plane campaign correlation.jmx` — coordinated three-IP reconnaissance.
 - `11-Policy enforcement monitor throttle temporary block escalate.jmx` — operator-selected policy outcomes.
 - `12-Adaptive rate limiting without attack signature.jmx` — valid-traffic adaptive throttling.
-- `14-bola_demo.jmx` — ownership protection and object enumeration.
+- `14-BOLA ownership and object-enumeration protection.jmx` — ownership protection and object enumeration.
 
 For lightweight detector checks, use a Bash-capable shell:
 

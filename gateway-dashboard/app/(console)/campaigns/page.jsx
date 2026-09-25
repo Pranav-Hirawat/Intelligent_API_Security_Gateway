@@ -129,7 +129,6 @@ export default function CampaignsPage() {
             <EmptyState
               icon={CampaignsIcon}
               title="No campaigns yet."
-              hint="Run the control plane against real traffic, or seed evidence for a demo — see the dashboard README."
             />
           )}
         </article>

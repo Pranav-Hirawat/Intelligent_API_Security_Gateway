@@ -501,9 +501,11 @@ const EVENT_ACTION_TONE = {
 
 export function EventTable({ events, empty, showRequestNumber = false, showGeo = false, geoByIp = {} }) {
   const cols = 7 + (showRequestNumber ? 1 : 0) + (showGeo ? 1 : 0);
+  const [selectedEvent, setSelectedEvent] = useState(null);
   return (
-    <div className="table-wrap">
-      <table>
+    <>
+      <div className="table-wrap">
+        <table>
         <thead>
           <tr>
             {showRequestNumber ? <th>Req no.</th> : null}
@@ -544,7 +546,14 @@ export function EventTable({ events, empty, showRequestNumber = false, showGeo =
                     <span className="method">{event.method}</span> {event.path}
                   </td>
                   <td>
-                    <span className={`status-chip ${statusTone(event.status)}`}>{event.status}</span>
+                    <button
+                      type="button"
+                      className={`status-chip status-button ${statusTone(event.status)}`}
+                      onClick={() => setSelectedEvent(event)}
+                      title="View request details"
+                    >
+                      {event.status}
+                    </button>
                   </td>
                   <td>
                     <div className="risk-cell">
@@ -582,7 +591,74 @@ export function EventTable({ events, empty, showRequestNumber = false, showGeo =
             })
           )}
         </tbody>
-      </table>
+        </table>
+      </div>
+      {selectedEvent ? <EventDetails event={selectedEvent} onClose={() => setSelectedEvent(null)} /> : null}
+    </>
+  );
+}
+
+function EventDetails({ event, onClose }) {
+  const retryAfter = event.status === 429
+    ? event.retryAfter || "Not recorded for this event"
+    : "Not applicable";
+  const fields = [
+    ["Request ID", event.requestId],
+    ["Request number", event.seq],
+    ["Arrived", event.arrivalTs && formatTime(event.arrivalTs)],
+    ["Completed", event.ts && formatTime(event.ts)],
+    ["Source IP", event.ip],
+    ["User agent", event.userAgent],
+    ["Endpoint", [event.method, event.path].filter(Boolean).join(" ")],
+    ["Route template", event.routeTemplate],
+    ["Query", event.query],
+    ["Status", event.status],
+    ["Retry-After", retryAfter],
+    ["Response origin", event.responseOrigin],
+    ["Gateway reason", event.gatewayReason],
+    ["Decision", actionLabel(event.decision)],
+    ["Risk score", event.riskScore],
+    ["Upstream status", event.upstreamStatus],
+    ["Upstream outcome", event.upstreamOutcome],
+    ["Upstream duration", event.upstreamDurationMs != null ? `${event.upstreamDurationMs} ms` : null],
+    ["Gateway duration", event.gatewayMs != null ? `${event.gatewayMs} ms` : null],
+    ["Request body", event.requestBodyBytes != null ? `${event.requestBodyBytes} bytes` : null],
+    ["Response body", event.responseBodyBytes != null ? `${event.responseBodyBytes} bytes` : null],
+  ];
+
+  return (
+    <div className="modal-overlay" onMouseDown={onClose}>
+      <section
+        className="modal-card event-details-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="event-details-title"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <div className="event-details-head">
+          <div>
+            <p className="eyebrow">Request inspection</p>
+            <h2 id="event-details-title">Request details</h2>
+          </div>
+          <button type="button" className="act small" onClick={onClose}>Close</button>
+        </div>
+        <div className="event-details-signals">
+          {(event.fired || []).length
+            ? canonicalSignals(event.fired).map((name) => {
+              const meta = signalMeta(name);
+              return <span key={name} className="sig-tag" style={{ color: meta.color, borderColor: meta.color }}>{meta.label}</span>;
+            })
+            : <span className="faint">No detector signals</span>}
+        </div>
+        <dl className="event-details-grid">
+          {fields.map(([label, value]) => (
+            <div key={label}>
+              <dt>{label}</dt>
+              <dd>{value === undefined || value === null || value === "" ? "—" : String(value)}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
     </div>
   );
 }

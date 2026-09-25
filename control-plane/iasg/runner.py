@@ -56,12 +56,13 @@ class CycleResult:
     overridden: list[Campaign] = field(default_factory=list)
     # Policy written purely on a human's instruction, about addresses no
     # campaign mentioned.
-    manual: list = field(default_factory=list)
+    manual: list[PolicyDecision] = field(default_factory=list)
+    # What the agent has learned from past overrides and applied this cycle.
+    learned: list[str] = field(default_factory=list)
     # Narration calls the cycle refused because its budget was spent. Reported
     # so a campaign reading as a bare template is explained rather than
     # looking like the LLM silently broke.
     narration_skipped: int = 0
-
 
 class Runner:
     def __init__(self, settings: Settings, store: Store | None = None) -> None:
@@ -258,7 +259,8 @@ class Runner:
         for decision in decisions:
             human_override = decision.source == "human"
             automatic = eligible.get(decision.policy_id, False)
-            if human_override or automatic:
+            should_activate = human_override or automatic
+            if should_activate:
                 self._approve(decision)
                 if self._write_active(decision, result, actor=decision.issued_by):
                     active.append(decision)

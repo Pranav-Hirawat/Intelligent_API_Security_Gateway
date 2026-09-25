@@ -295,6 +295,9 @@ func TestPolicyTelemetryKeepsActionAndOutcomeSeparate(t *testing.T) {
 			handler := Middleware(writer, nil, nil, nil)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				policy.RecordMatch(r, match)
 				policy.Record(r, tc.decision)
+				if tc.status == http.StatusTooManyRequests {
+					w.Header().Set("Retry-After", "12")
+				}
 				w.WriteHeader(tc.status)
 			}))
 			send(t, handler, http.MethodPost, "/api/login", match.ClientIP, "")
@@ -304,6 +307,9 @@ func TestPolicyTelemetryKeepsActionAndOutcomeSeparate(t *testing.T) {
 			}
 			if ev.Decision != tc.decision || ev.Status != tc.status {
 				t.Fatalf("existing outcome fields changed: %+v", ev)
+			}
+			if tc.status == http.StatusTooManyRequests && ev.RetryAfter != "12" {
+				t.Fatalf("rate-limit guidance was not recorded: %+v", ev)
 			}
 			payload, err := json.Marshal(ev)
 			if err != nil {
