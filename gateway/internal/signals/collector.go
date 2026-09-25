@@ -1,7 +1,7 @@
 package signals
 
 // Collector gathers Evidence from every registered detector for one IP.
-// The decision engine will call Collect(ip) instead of talking to detectors
+// Telemetry asks it for a snapshot instead of talking to detectors
 // individually.
 type Collector struct {
 	detectors []Detector
@@ -9,10 +9,6 @@ type Collector struct {
 
 func NewCollector(detectors ...Detector) *Collector {
 	return &Collector{detectors: detectors}
-}
-
-func (c *Collector) Collect(ip string) []Evidence {
-	return c.collect(ip, "")
 }
 
 // collect gathers evidence for an IP. With a request id, detectors that
@@ -39,18 +35,14 @@ func (c *Collector) collect(ip, requestID string) []Evidence {
 	return out
 }
 
-// Snapshot is one Collect() plus derived totals for telemetry / scoring.
+// Snapshot is one collection plus derived totals for telemetry / scoring.
 type Snapshot struct {
 	Evidence   []Evidence
 	TotalScore int
 	Fired      []string
 }
 
-func (c *Collector) Snapshot(ip string) Snapshot {
-	return summarize(c.Collect(ip))
-}
-
-// SnapshotFor is Snapshot for a single request, so what telemetry records is
+// SnapshotFor is a snapshot for a single request, so what telemetry records is
 // what that request actually carried rather than what the address did last.
 func (c *Collector) SnapshotFor(ip, requestID string) Snapshot {
 	return summarize(c.collect(ip, requestID))
@@ -76,9 +68,4 @@ func summarize(evs []Evidence) Snapshot {
 	// evidence while keeping that public value on its documented 0-100 scale.
 	snap.TotalScore = clampScore(snap.TotalScore)
 	return snap
-}
-
-// TotalScore is the combined detector score, bounded to the 0-100 risk scale.
-func (c *Collector) TotalScore(ip string) int {
-	return c.Snapshot(ip).TotalScore
 }

@@ -12,9 +12,9 @@ import (
 // describes one request and nothing else, so handing it to a later request
 // reports an attack that request did not carry -- see GetFor.
 type lastEvidenceStore struct {
-	mu   sync.Mutex
-	hits map[string]datedEvidence
-	ttl  time.Duration
+	mu     sync.Mutex
+	hits   map[string]datedEvidence
+	signal string
 }
 
 type datedEvidence struct {
@@ -23,14 +23,11 @@ type datedEvidence struct {
 	evidence  Evidence
 }
 
-func newLastEvidenceStore(ttl time.Duration) *lastEvidenceStore {
-	return &lastEvidenceStore{
-		hits: make(map[string]datedEvidence),
-		ttl:  ttl,
-	}
+func newLastEvidenceStore(signal string) *lastEvidenceStore {
+	return &lastEvidenceStore{hits: make(map[string]datedEvidence), signal: signal}
 }
 
-func (s *lastEvidenceStore) Put(ip, requestID string, e Evidence) {
+func (s *lastEvidenceStore) put(ip, requestID string, e Evidence) {
 	if s == nil {
 		return
 	}
@@ -39,23 +36,24 @@ func (s *lastEvidenceStore) Put(ip, requestID string, e Evidence) {
 	s.mu.Unlock()
 }
 
-// Get returns the latest evidence held for an IP, whichever request produced
-// it. It answers "what did this address last do", not "what did this request
-// contain" -- for the second question use GetFor.
-func (s *lastEvidenceStore) Get(ip, signal string) Evidence {
+// Metrics returns the latest evidence held for an IP, whichever request
+// produced it. It answers "what did this address last do", not "what did this
+// request contain" -- for the second question use MetricsFor.
+func (s *lastEvidenceStore) Metrics(ip string) Evidence {
 	if s == nil {
-		return Evidence{Signal: signal}
+		return Evidence{}
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	hit, ok := s.hits[ip]
-	if !ok || time.Since(hit.at) > s.ttl {
-		return Evidence{Signal: signal}
+	if !ok || time.Since(hit.at) > lastEvidenceTTL {
+		return Evidence{Signal: s.signal}
 	}
 	return hit.evidence
 }
 
-// GetFor returns evidence only when this exact request produced it.
+// MetricsFor returns evidence only when this exact request produced it, and
+// nothing when the request never reached the detector.
 //
 // A request can reach telemetry without ever reaching the detectors: the
 // policy enforcer answers a blocked address before the chain gets that far,
@@ -63,15 +61,18 @@ func (s *lastEvidenceStore) Get(ip, signal string) Evidence {
 // request id makes that case report nothing, rather than replaying an attack
 // from up to lastEvidenceTTL ago onto a request that was never inspected --
 // evidence the control plane would otherwise ingest as a fresh hit.
-func (s *lastEvidenceStore) GetFor(ip, requestID, signal string) Evidence {
-	if s == nil || requestID == "" {
-		return Evidence{Signal: signal}
+func (s *lastEvidenceStore) MetricsFor(ip, requestID string) Evidence {
+	if s == nil {
+		return Evidence{}
+	}
+	if requestID == "" {
+		return Evidence{Signal: s.signal}
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	hit, ok := s.hits[ip]
-	if !ok || hit.requestID != requestID || time.Since(hit.at) > s.ttl {
-		return Evidence{Signal: signal}
+	if !ok || hit.requestID != requestID || time.Since(hit.at) > lastEvidenceTTL {
+		return Evidence{Signal: s.signal}
 	}
 	return hit.evidence
 }

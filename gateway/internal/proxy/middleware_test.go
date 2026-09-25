@@ -131,7 +131,7 @@ func TestBruteForceEvidenceNeverArmsTheGatewayReflex(t *testing.T) {
 	// This has the same relevant nesting as Server.Start: enforcement remains
 	// outermost, and the reflex observer wraps the response-aware detector.
 	handler := ChainMiddleware(
-		policy.NewEnforcer(reflex, true, 0).Middleware,
+		policy.NewEnforcer(reflex, true).Middleware,
 		observedDetectors(reflex, collector, brute.Middleware),
 	)(backend)
 
@@ -200,7 +200,7 @@ func TestObservedDetectorsStillBlocksFlooding(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 	handler := ChainMiddleware(
-		policy.NewEnforcer(reflex, true, 0).Middleware,
+		policy.NewEnforcer(reflex, true).Middleware,
 		observedDetectors(reflex, collector, flood.Middleware),
 	)(backend)
 

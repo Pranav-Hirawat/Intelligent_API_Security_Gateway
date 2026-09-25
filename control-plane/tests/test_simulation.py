@@ -25,11 +25,13 @@ from iasg.models import (
     Evidence,
     PolicyDecision,
 )
-from iasg.policy.agent import TTL
 from iasg.policy.simulation import Simulator
 from iasg.store.memory import MemoryStore
 
 NOW = datetime.now(timezone.utc)
+
+# How long each action stands; the simulator preserves whatever the decision carried.
+TTL = {ACTION_ALLOW: 900, ACTION_MONITOR: 300, ACTION_THROTTLE: 900, ACTION_TEMP_BLOCK: 1800, ACTION_ESCALATE: 3600}
 
 
 def settings(**overrides):

@@ -1,6 +1,7 @@
 package telemetry
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"log/slog"
@@ -38,10 +39,6 @@ type AsyncWriter[T any] struct {
 	what     string
 }
 
-func NewAsyncWriter[T any](writer Writer[T], capacity int, timeout time.Duration) *AsyncWriter[T] {
-	return NewNamedAsyncWriter(writer, capacity, timeout, "telemetry")
-}
-
 // NewNamedAsyncWriter labels the overflow warning. With two queues running,
 // "telemetry_queue_full" alone would not say which one is losing records, and
 // the arrivals queue overflowing means something different from the events
@@ -53,9 +50,7 @@ func NewNamedAsyncWriter[T any](writer Writer[T], capacity int, timeout time.Dur
 	if timeout <= 0 {
 		timeout = 100 * time.Millisecond
 	}
-	if what == "" {
-		what = "telemetry"
-	}
+	what = cmp.Or(what, "telemetry")
 	ctx, cancel := context.WithCancel(context.Background())
 	w := &AsyncWriter[T]{
 		writer: writer, queue: make(chan T, capacity), timeout: timeout,

@@ -1,6 +1,7 @@
 package signals
 
 import (
+	"cmp"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -77,8 +78,6 @@ func routeKey(method, route string) string {
 	return strings.ToUpper(method) + " " + route
 }
 
-func (d *BruteForceDetector) Name() string { return SignalBruteForce }
-
 func (d *BruteForceDetector) settings() bruteTunables { return *d.tun.Load() }
 
 func (d *BruteForceDetector) Apply(cfg config.BruteForceConfig) {
@@ -108,11 +107,11 @@ func (d *BruteForceDetector) Apply(cfg config.BruteForceConfig) {
 	// arbitrary client and target strings until its original expiry.
 	d.mu.Lock()
 	for len(d.clients) > tun.maxClients {
-		dropOldestBruteForceClient(d.clients)
+		dropOldest(d.clients, oldestStreak)
 	}
 	for _, byTarget := range d.clients {
 		for len(byTarget) > tun.maxTargetsPerClient {
-			dropOldestBruteForceTarget(byTarget)
+			dropOldest(byTarget, func(s *loginStreak) time.Time { return s.lastSeen })
 		}
 	}
 	d.mu.Unlock()
@@ -160,7 +159,7 @@ func (d *BruteForceDetector) recordFailure(ip, route, target string, now time.Ti
 	if byTarget == nil {
 		if len(d.clients) >= tun.maxClients {
 			// Address spraying must not turn failed logins into an unbounded map.
-			dropOldestBruteForceClient(d.clients)
+			dropOldest(d.clients, oldestStreak)
 		}
 		byTarget = make(map[string]*loginStreak)
 		d.clients[ip] = byTarget
@@ -170,7 +169,7 @@ func (d *BruteForceDetector) recordFailure(ip, route, target string, now time.Ti
 		if streak == nil && len(byTarget) >= tun.maxTargetsPerClient {
 			// Account names are attacker input too. Retain recency, not every
 			// guessed identity, so one client cannot fill process memory.
-			dropOldestBruteForceTarget(byTarget)
+			dropOldest(byTarget, func(s *loginStreak) time.Time { return s.lastSeen })
 		}
 		streak = &loginStreak{route: route, target: target}
 		byTarget[key] = streak
@@ -204,38 +203,20 @@ func (d *BruteForceDetector) recordSuccess(ip, route, target string) {
 }
 
 func streakKey(route, target string) string {
-	if target == "" {
-		target = "<unknown>"
-	}
+	target = cmp.Or(target, "<unknown>")
 	return route + "\x00" + target
 }
 
-func dropOldestBruteForceClient(clients map[string]map[string]*loginStreak) {
-	var oldestIP string
+// oldestStreak is when a client was last seen on its quietest target, so the
+// client evicted from a full table is the one that has been silent longest.
+func oldestStreak(byTarget map[string]*loginStreak) time.Time {
 	var oldest time.Time
-	for ip, byTarget := range clients {
-		for _, streak := range byTarget {
-			if oldestIP == "" || streak.lastSeen.Before(oldest) {
-				oldestIP, oldest = ip, streak.lastSeen
-			}
+	for _, s := range byTarget {
+		if oldest.IsZero() || s.lastSeen.Before(oldest) {
+			oldest = s.lastSeen
 		}
 	}
-	if oldestIP != "" {
-		delete(clients, oldestIP)
-	}
-}
-
-func dropOldestBruteForceTarget(byTarget map[string]*loginStreak) {
-	var oldestKey string
-	var oldest time.Time
-	for key, streak := range byTarget {
-		if oldestKey == "" || streak.lastSeen.Before(oldest) {
-			oldestKey, oldest = key, streak.lastSeen
-		}
-	}
-	if oldestKey != "" {
-		delete(byTarget, oldestKey)
-	}
+	return oldest
 }
 
 func (d *BruteForceDetector) Metrics(ip string) Evidence {
@@ -331,9 +312,7 @@ func (sr *statusRecorder) WriteHeader(code int) {
 }
 
 func (sr *statusRecorder) Write(body []byte) (int, error) {
-	if sr.status == 0 {
-		sr.status = http.StatusOK
-	}
+	sr.status = cmp.Or(sr.status, http.StatusOK)
 	return sr.ResponseWriter.Write(body)
 }
 

@@ -60,7 +60,7 @@ func (l *requestLookup) LookupRequest(_, route, _ string) (Decision, bool) {
 
 func TestEnforcerUsesNormalizedRouteAndAcceptsContractBlockName(t *testing.T) {
 	lookup := &requestLookup{d: Decision{Action: ActionTemporaryBlock}}
-	enforcer := NewEnforcer(lookup, true, 0).WithRouteResolver(func(method, path string) string {
+	enforcer := NewEnforcer(lookup, true).WithRouteResolver(func(method, path string) string {
 		return "/api/products/{id}"
 	})
 	reached := false

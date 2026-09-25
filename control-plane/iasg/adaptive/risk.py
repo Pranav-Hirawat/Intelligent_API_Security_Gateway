@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Iterable
 
-from iasg.adaptive.baseline import BaselineSummary, EndpointKey
+from iasg.adaptive.baseline import BaselineLearner, BaselineSummary, EndpointKey
 from iasg.adaptive.config import AdaptiveConfig, AUTO_ACTIONS
 from iasg.models import (
     ACTION_MONITOR,
@@ -63,12 +63,7 @@ def calculate_risk(
         100.0,
     )
 
-    deviation = 0.0
-    if baseline is not None and baseline.ready and baseline.derived_threshold > 0:
-        deviation = max(
-            0.0,
-            (observed_rate - baseline.derived_threshold) / baseline.derived_threshold,
-        )
+    deviation = BaselineLearner.deviation(baseline, observed_rate)
     behavioural_score = _clamp(deviation * 100.0, 0.0, 100.0)
     behavioural_throttle = (
         guard.behavioural_throttle_enabled

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/Adnan-Safdari/Intelligent_API_Security_Gateway/internal/netutil"
 	"github.com/Adnan-Safdari/Intelligent_API_Security_Gateway/internal/policy"
@@ -26,6 +27,18 @@ func (b forbiddenRead) Read([]byte) (int, error) {
 }
 
 func (b forbiddenRead) Close() error { return nil }
+
+// oneRequestQuota lets the first call through and refuses the rest, which is
+// all this test needs from the Redis bucket production wires.
+type oneRequestQuota struct{ taken bool }
+
+func (q *oneRequestQuota) Take(context.Context, policy.QuotaRequest) (policy.QuotaResult, error) {
+	if q.taken {
+		return policy.QuotaResult{RetryAfter: time.Minute}, nil
+	}
+	q.taken = true
+	return policy.QuotaResult{Allowed: true, Reason: "within_quota"}, nil
+}
 
 type bodyTestEvents struct{ events []telemetry.Event }
 
@@ -50,7 +63,7 @@ func TestPolicyRefusalsDoNotReadBodiesAndStillProduceTelemetry(t *testing.T) {
 			}
 			enforcer := policy.NewEnforcer(bodyTestPolicies{
 				ip: {Action: tc.action, RequestsPerMinute: 1},
-			}, true, 0).WithLimiter(policy.NewLimiter())
+			}, true).WithQuotaLimiter(&oneRequestQuota{}, 60, 20)
 			writer := &bodyTestEvents{}
 			backendCalls := 0
 			handler := ChainMiddleware(

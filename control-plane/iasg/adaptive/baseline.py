@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 import statistics
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Protocol
 
@@ -48,15 +48,6 @@ class BaselineSummary:
     @property
     def key(self) -> EndpointKey:
         return EndpointKey.of(self.method, self.route_template)
-
-    def public_dict(self) -> dict:
-        value = asdict(self)
-        value.pop("samples", None)
-        value["baseline_ready"] = value.pop("ready")
-        for name in ("last_update", "last_threshold_change"):
-            if value[name] is not None:
-                value[name] = value[name].astimezone(timezone.utc).isoformat()
-        return value
 
 
 class BaselineRepository(Protocol):

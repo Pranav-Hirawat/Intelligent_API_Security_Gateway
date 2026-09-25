@@ -37,7 +37,7 @@ func run(t *testing.T, e *Enforcer, ip string) (int, bool) {
 }
 
 func TestUnknownIPPassesThrough(t *testing.T) {
-	e := NewEnforcer(fakeLookup{}, true, 0)
+	e := NewEnforcer(fakeLookup{}, true)
 
 	if code, reached := run(t, e, "203.0.113.5"); code != http.StatusOK || !reached {
 		t.Fatalf("want 200 and backend reached, got %d reached=%v", code, reached)
@@ -47,7 +47,7 @@ func TestUnknownIPPassesThrough(t *testing.T) {
 func TestTempBlockIsRejected(t *testing.T) {
 	e := NewEnforcer(fakeLookup{
 		"203.0.113.5": {Action: ActionTempBlock, CampaignID: "1", ExpiresIn: 1800},
-	}, true, 0)
+	}, true)
 
 	code, reached := run(t, e, "203.0.113.5")
 	if code != http.StatusForbidden {
@@ -61,7 +61,7 @@ func TestTempBlockIsRejected(t *testing.T) {
 func TestEscalateIsRejected(t *testing.T) {
 	e := NewEnforcer(fakeLookup{
 		"203.0.113.9": {Action: ActionEscalate, CampaignID: "2"},
-	}, true, 0)
+	}, true)
 
 	if code, _ := run(t, e, "203.0.113.9"); code != http.StatusForbidden {
 		t.Fatalf("want 403, got %d", code)
@@ -71,7 +71,7 @@ func TestEscalateIsRejected(t *testing.T) {
 func TestMonitorDoesNotBlock(t *testing.T) {
 	e := NewEnforcer(fakeLookup{
 		"203.0.113.5": {Action: ActionMonitor},
-	}, true, 0)
+	}, true)
 
 	if code, reached := run(t, e, "203.0.113.5"); code != http.StatusOK || !reached {
 		t.Fatalf("monitor must not block, got %d reached=%v", code, reached)
@@ -82,7 +82,7 @@ func TestMonitorDoesNotBlock(t *testing.T) {
 func TestUnrecognisedActionFailsOpen(t *testing.T) {
 	e := NewEnforcer(fakeLookup{
 		"203.0.113.5": {Action: "quarantine_forever"},
-	}, true, 0)
+	}, true)
 
 	if code, reached := run(t, e, "203.0.113.5"); code != http.StatusOK || !reached {
 		t.Fatalf("unknown action must pass through, got %d reached=%v", code, reached)
@@ -92,7 +92,7 @@ func TestUnrecognisedActionFailsOpen(t *testing.T) {
 func TestDisabledEnforcerIgnoresPolicy(t *testing.T) {
 	e := NewEnforcer(fakeLookup{
 		"203.0.113.5": {Action: ActionTempBlock},
-	}, false, 0)
+	}, false)
 
 	if code, reached := run(t, e, "203.0.113.5"); code != http.StatusOK || !reached {
 		t.Fatalf("disabled enforcer must not block, got %d reached=%v", code, reached)
@@ -102,7 +102,7 @@ func TestDisabledEnforcerIgnoresPolicy(t *testing.T) {
 func TestThrottleNeverSleeps(t *testing.T) {
 	e := NewEnforcer(fakeLookup{
 		"203.0.113.5": {Action: ActionThrottle},
-	}, true, time.Hour)
+	}, true)
 
 	start := time.Now()
 	code, reached := run(t, e, "203.0.113.5")
@@ -119,7 +119,7 @@ func TestThrottleNeverSleeps(t *testing.T) {
 func TestBlockSetsRetryAfter(t *testing.T) {
 	e := NewEnforcer(fakeLookup{
 		"203.0.113.5": {Action: ActionTempBlock, ExpiresIn: 1800},
-	}, true, 0)
+	}, true)
 
 	handler := e.Middleware(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -141,7 +141,7 @@ func TestBlockResponseLeaksNothing(t *testing.T) {
 			Confidence: 0.97,
 			Reason:     "Credential Stuffing (campaign 7)",
 		},
-	}, true, 0)
+	}, true)
 
 	handler := e.Middleware(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -181,7 +181,7 @@ func TestDecisionParsesControlPlaneJSON(t *testing.T) {
 }
 
 func TestRetryAfterRoundsUpAndUsesRemainingLifetime(t *testing.T) {
-	e := NewEnforcer(nil, true, 0)
+	e := NewEnforcer(nil, true)
 	w := httptest.NewRecorder()
 	e.rateLimited(w, 1100*time.Millisecond)
 	if w.Header().Get("Retry-After") != "2" {

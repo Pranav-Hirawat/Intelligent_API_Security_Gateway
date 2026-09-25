@@ -28,7 +28,6 @@ type Evidence struct {
 // Detector is the contract every attack signal implements so a collector
 // or decision engine can treat them uniformly.
 type Detector interface {
-	Name() string
 	Metrics(ip string) Evidence
 }
 
@@ -87,15 +86,6 @@ func (e Evidence) Int(key string) int {
 	}
 }
 
-// Bool reads a boolean detail. Missing or wrong-typed keys return false.
-func (e Evidence) Bool(key string) bool {
-	if e.Details == nil {
-		return false
-	}
-	v, _ := e.Details[key].(bool)
-	return v
-}
-
 // Strings reads a string-slice detail. Missing or wrong-typed keys return nil.
 func (e Evidence) Strings(key string) []string {
 	if e.Details == nil {
@@ -103,6 +93,23 @@ func (e Evidence) Strings(key string) []string {
 	}
 	v, _ := e.Details[key].([]string)
 	return v
+}
+
+// dropOldest makes room in a full table by forgetting the entry seen longest
+// ago, so a flood of new addresses cannot grow detector state without bound
+// and cannot evict the ones that are still active. An entry with no time is
+// never chosen.
+func dropOldest[V any](m map[string]V, seen func(V) time.Time) {
+	var oldestKey string
+	var oldest time.Time
+	for key, v := range m {
+		if at := seen(v); !at.IsZero() && (oldestKey == "" || at.Before(oldest)) {
+			oldestKey, oldest = key, at
+		}
+	}
+	if oldestKey != "" {
+		delete(m, oldestKey)
+	}
 }
 
 func clampScore(score int) int {

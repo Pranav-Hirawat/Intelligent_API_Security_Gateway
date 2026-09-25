@@ -123,7 +123,9 @@ def test_campaigns_outside_the_working_set_are_not_offered_to_the_correlator(db)
     # Gone from the working set, but never deleted -- history is the reason
     # this store exists.
     assert db.campaigns.all() == []
-    assert len(db.campaigns.history()) == 1
+    with db._conn.cursor() as cur:
+        cur.execute("SELECT count(*) FROM campaigns")
+        assert cur.fetchone()[0] == 1
 
 
 def test_the_repository_uses_the_database_when_given_one(db):

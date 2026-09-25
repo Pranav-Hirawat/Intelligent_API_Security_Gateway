@@ -195,15 +195,15 @@ func TestSweepReleasesMemory(t *testing.T) {
 	for _, ip := range []string{"203.0.113.20", "203.0.113.21", "203.0.113.22"} {
 		r.Observe(ip, snap(signals.SignalFlood, 100, true))
 	}
-	if got := r.Size(); got != 3 {
-		t.Fatalf("Size() = %d, want 3", got)
+	if got := len(r.blocked); got != 3 {
+		t.Fatalf("blocked = %d, want 3", got)
 	}
 
 	time.Sleep(20 * time.Millisecond)
 	r.sweep(time.Now())
 
-	if got := r.Size(); got != 0 {
-		t.Errorf("Size() = %d after sweeping expired blocks, want 0", got)
+	if got := len(r.blocked); got != 0 {
+		t.Errorf("blocked = %d after sweeping expired blocks, want 0", got)
 	}
 }
 

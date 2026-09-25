@@ -371,7 +371,7 @@ func (s *Server) newEnforcer(reflex *enforcement.Reflex) (*policy.Enforcer, *pol
 	sources = append(sources, reflex)
 
 	enforcer := policy.NewEnforcer(
-		sources, anySourceOn(reflex, gate), throttleDelay(enf.Throttle),
+		sources, anySourceOn(reflex, gate),
 	).WithQuotaLimiter(quota, a.FallbackRequestsPerMinute, a.Burst)
 
 	baseline, err := baselineFrom(enf.RateLimit, enf.Block)
@@ -379,7 +379,7 @@ func (s *Server) newEnforcer(reflex *enforcement.Reflex) (*policy.Enforcer, *pol
 		closePolicy()
 		return nil, nil, nil, err
 	}
-	enforcer.ApplyAll(anySourceOn(reflex, gate), throttleDelay(enf.Throttle), baseline)
+	enforcer.ApplyAll(anySourceOn(reflex, gate), baseline)
 	if baseline.RequestsPerMinute > 0 {
 		log.Printf("[enforcement] baseline rate limit %d/min for every address not under a policy",
 			baseline.RequestsPerMinute)
@@ -409,15 +409,6 @@ func baselineFrom(rl config.RateLimitConfig, block config.BlockConfig) (policy.B
 	}
 
 	return policy.Baseline{RequestsPerMinute: rl.RequestsPerMinute, Exempt: exempt}, nil
-}
-
-// Preserve the settings wire's legacy duration argument for API compatibility.
-// The enforcer ignores it; adaptive quota admission is always immediate.
-func throttleDelay(cfg config.ThrottleConfig) time.Duration {
-	if !cfg.Enabled {
-		return 0
-	}
-	return time.Duration(cfg.DelayMS) * time.Millisecond
 }
 
 // anySourceOn reports whether any source could currently have an opinion.

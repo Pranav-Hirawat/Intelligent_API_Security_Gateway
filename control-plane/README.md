@@ -253,7 +253,6 @@ there together:
 | `iasg/evidence/ingest.py` | parses the gateway's `SECURITY ALERT` blocks |
 | `iasg/correlation/` | **groups IPs into campaigns** — union-find over shared traits |
 | `iasg/campaigns/` | memory: campaigns persist, merge, and are reviewed for outcome |
-| `iasg/policy/agent.py` | the block/throttle ladder |
 | `iasg/policy/simulation.py` | is the response safe? collateral checks, run last |
 | `iasg/policy/writer.py` | the only code that writes policy, and its rails |
 | `iasg/feedback/` | human overrides, and what the agent learns from them |

@@ -83,3 +83,7 @@ site/
 .claude/settings.json
 
 IASG Operations dashboard.zip
+
+# White-box coverage reports (testing/coverage.sh)
+coverage/
+.coverage

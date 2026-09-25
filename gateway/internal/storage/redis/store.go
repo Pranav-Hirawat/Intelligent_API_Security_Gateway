@@ -1,10 +1,12 @@
 package redisstore
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/Adnan-Safdari/Intelligent_API_Security_Gateway/internal/config"
@@ -51,9 +53,7 @@ func New(cfg config.RedisConfig) (*Store, error) {
 	})
 
 	streamKey := cfg.StreamKey
-	if streamKey == "" {
-		streamKey = KeyEvents
-	}
+	streamKey = cmp.Or(streamKey, KeyEvents)
 
 	// A startup outage must not permanently disable the control plane's
 	// evidence feed. Keep the client so later queued writes can reconnect;
@@ -109,7 +109,7 @@ func (s *Store) WriteEvent(ctx context.Context, ev telemetry.Event) error {
 			"path":      ev.Path,
 			"decision":  ev.Decision,
 			"riskScore": ev.RiskScore,
-			"fired":     stringsJoin(ev.Fired),
+			"fired":     strings.Join(ev.Fired, ","),
 			"requestId": ev.RequestID,
 		},
 	})
@@ -125,17 +125,6 @@ func (s *Store) WriteEvent(ctx context.Context, ev telemetry.Event) error {
 
 	_, err = pipe.Exec(ctx)
 	return err
-}
-
-func stringsJoin(values []string) string {
-	if len(values) == 0 {
-		return ""
-	}
-	out := values[0]
-	for i := 1; i < len(values); i++ {
-		out += "," + values[i]
-	}
-	return out
 }
 
 func unique(values []string) []string {

@@ -32,7 +32,7 @@ func TestRedisHTTPPolicyLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	h := resolver.Middleware(NewEnforcer(s, true, time.Hour).WithQuotaLimiter(l, 1, 1).Middleware(
+	h := resolver.Middleware(NewEnforcer(s, true).WithQuotaLimiter(l, 1, 1).Middleware(
 		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			forwarded.Add(1)
 			w.WriteHeader(http.StatusOK)
@@ -111,8 +111,8 @@ func TestRedisHTTPReplicasShareQuota(t *testing.T) {
 	var forwarded atomic.Int64
 	backend := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { forwarded.Add(1); w.WriteHeader(http.StatusOK) })
 	handlers := []http.Handler{
-		NewEnforcer(s, true, 0).WithQuotaLimiter(first, 1, 1).Middleware(backend),
-		NewEnforcer(s, true, 0).WithQuotaLimiter(second, 1, 1).Middleware(backend),
+		NewEnforcer(s, true).WithQuotaLimiter(first, 1, 1).Middleware(backend),
+		NewEnforcer(s, true).WithQuotaLimiter(second, 1, 1).Middleware(backend),
 	}
 	var allowed, denied, unexpected atomic.Int64
 	start := make(chan struct{})
@@ -142,7 +142,7 @@ func TestRedisHTTPReplicasShareQuota(t *testing.T) {
 func TestHTTPRedisOutageFailsOpen(t *testing.T) {
 	l := NewRedisLimiter(Config{Addr: "127.0.0.1:1", RedisTimeout: 20 * time.Millisecond, FailureBackoff: time.Second})
 	defer l.Close()
-	e := NewEnforcer(fakeLookup{"203.0.113.5": {Action: ActionThrottle, RequestsPerMinute: 1}}, true, 0).WithQuotaLimiter(l, 1, 1)
+	e := NewEnforcer(fakeLookup{"203.0.113.5": {Action: ActionThrottle, RequestsPerMinute: 1}}, true).WithQuotaLimiter(l, 1, 1)
 	for i := 0; i < 3; i++ {
 		if code, reached := run(t, e, "203.0.113.5"); code != http.StatusOK || !reached {
 			t.Fatalf("outage interrupted forwarding: %d reached=%v", code, reached)
@@ -155,7 +155,7 @@ func TestScopedPolicyPreservesOtherSourceOutsideItsScope(t *testing.T) {
 		fakeLookup{"203.0.113.5": {Action: ActionAllow, Route: "/api/login", Method: "POST"}},
 		fakeLookup{"203.0.113.5": {Action: ActionTempBlock}},
 	}
-	h := NewEnforcer(chain, true, 0).Middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) }))
+	h := NewEnforcer(chain, true).Middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) }))
 	for _, tc := range []struct {
 		method, route string
 		want          int

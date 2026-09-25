@@ -1,6 +1,7 @@
 package config
 
 import (
+	"cmp"
 	"fmt"
 	"net"
 	"os"
@@ -192,9 +193,7 @@ type RedisConfig struct {
 
 func (c RedisConfig) Addr() string {
 	host := c.Host
-	if host == "" {
-		host = "localhost"
-	}
+	host = cmp.Or(host, "localhost")
 	port := c.Port
 	if port <= 0 {
 		port = 6379
@@ -230,27 +229,13 @@ type AdaptiveRateLimitConfig struct {
 }
 
 func (c AdaptiveRateLimitConfig) WithDefaults() AdaptiveRateLimitConfig {
-	if c.FallbackRequestsPerMinute == 0 {
-		c.FallbackRequestsPerMinute = 60
-	}
-	if c.Burst == 0 {
-		c.Burst = 20
-	}
-	if c.RedisTimeout == 0 {
-		c.RedisTimeout = 25 * time.Millisecond
-	}
-	if c.PolicyRefreshTimeout == 0 {
-		c.PolicyRefreshTimeout = 2 * time.Second
-	}
-	if c.FailureBackoff == 0 {
-		c.FailureBackoff = time.Second
-	}
-	if c.CacheMaxAge == 0 {
-		c.CacheMaxAge = 10 * time.Second
-	}
-	if c.BucketKeyPrefix == "" {
-		c.BucketKeyPrefix = "iasg:rate:"
-	}
+	c.FallbackRequestsPerMinute = cmp.Or(c.FallbackRequestsPerMinute, 60)
+	c.Burst = cmp.Or(c.Burst, 20)
+	c.RedisTimeout = cmp.Or(c.RedisTimeout, 25*time.Millisecond)
+	c.PolicyRefreshTimeout = cmp.Or(c.PolicyRefreshTimeout, 2*time.Second)
+	c.FailureBackoff = cmp.Or(c.FailureBackoff, time.Second)
+	c.CacheMaxAge = cmp.Or(c.CacheMaxAge, 10*time.Second)
+	c.BucketKeyPrefix = cmp.Or(c.BucketKeyPrefix, "iasg:rate:")
 	return c
 }
 
@@ -398,9 +383,7 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("parse yaml config %s: %w", path, err)
 	}
 
-	if cfg.Server.Host == "" {
-		cfg.Server.Host = "0.0.0.0"
-	}
+	cfg.Server.Host = cmp.Or(cfg.Server.Host, "0.0.0.0")
 	if cfg.Server.Port <= 0 {
 		return nil, fmt.Errorf("invalid server.port: %d", cfg.Server.Port)
 	}
@@ -408,21 +391,15 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("proxy.backend_url must be set")
 	}
 
-	if cfg.Storage.Redis.StreamKey == "" {
-		cfg.Storage.Redis.StreamKey = "iasg:events"
-	}
+	cfg.Storage.Redis.StreamKey = cmp.Or(cfg.Storage.Redis.StreamKey, "iasg:events")
 	if cfg.Storage.Redis.StreamMaxLen <= 0 {
 		cfg.Storage.Redis.StreamMaxLen = 2000
 	}
-	if cfg.Storage.Redis.ArrivalStreamKey == "" {
-		cfg.Storage.Redis.ArrivalStreamKey = "iasg:arrivals"
-	}
+	cfg.Storage.Redis.ArrivalStreamKey = cmp.Or(cfg.Storage.Redis.ArrivalStreamKey, "iasg:arrivals")
 	if cfg.Storage.Redis.ArrivalMaxLen <= 0 {
 		cfg.Storage.Redis.ArrivalMaxLen = cfg.Storage.Redis.StreamMaxLen
 	}
-	if cfg.Storage.Redis.HealthStreamKey == "" {
-		cfg.Storage.Redis.HealthStreamKey = "iasg:telemetry:health"
-	}
+	cfg.Storage.Redis.HealthStreamKey = cmp.Or(cfg.Storage.Redis.HealthStreamKey, "iasg:telemetry:health")
 	if cfg.Storage.Redis.HealthMaxLen <= 0 {
 		// One record a second, so this is a day of heartbeats.
 		cfg.Storage.Redis.HealthMaxLen = 86400
@@ -433,18 +410,12 @@ func Load(path string) (*Config, error) {
 	if cfg.Storage.Redis.PoolSize <= 0 {
 		cfg.Storage.Redis.PoolSize = 10
 	}
-	if cfg.Storage.Redis.TelemetryQueueSize == 0 {
-		cfg.Storage.Redis.TelemetryQueueSize = 1024
-	}
-	if cfg.Storage.Redis.TelemetryWriteTimeout == 0 {
-		cfg.Storage.Redis.TelemetryWriteTimeout = 100 * time.Millisecond
-	}
+	cfg.Storage.Redis.TelemetryQueueSize = cmp.Or(cfg.Storage.Redis.TelemetryQueueSize, 1024)
+	cfg.Storage.Redis.TelemetryWriteTimeout = cmp.Or(cfg.Storage.Redis.TelemetryWriteTimeout, 100*time.Millisecond)
 	if cfg.Storage.Redis.TelemetryQueueSize < 0 || cfg.Storage.Redis.TelemetryWriteTimeout < 0 {
 		return nil, fmt.Errorf("Redis telemetry queue size and write timeout must be positive")
 	}
-	if cfg.Enforcement.Policy.KeyPrefix == "" {
-		cfg.Enforcement.Policy.KeyPrefix = "policy:"
-	}
+	cfg.Enforcement.Policy.KeyPrefix = cmp.Or(cfg.Enforcement.Policy.KeyPrefix, "policy:")
 	if cfg.Enforcement.Policy.RefreshInterval <= 0 {
 		cfg.Enforcement.Policy.RefreshInterval = 5 * time.Second
 	}
@@ -497,18 +468,10 @@ func Load(path string) (*Config, error) {
 // Settings uses the same function so a hand-written Redis override receives
 // exactly the validation a YAML file does.
 func ValidatedBruteForce(cfg BruteForceConfig) (BruteForceConfig, error) {
-	if cfg.MaxFailures == 0 {
-		cfg.MaxFailures = 5
-	}
-	if cfg.Window == 0 {
-		cfg.Window = time.Minute
-	}
-	if cfg.MaxClients == 0 {
-		cfg.MaxClients = 10_000
-	}
-	if cfg.MaxTargetsPerClient == 0 {
-		cfg.MaxTargetsPerClient = 64
-	}
+	cfg.MaxFailures = cmp.Or(cfg.MaxFailures, 5)
+	cfg.Window = cmp.Or(cfg.Window, time.Minute)
+	cfg.MaxClients = cmp.Or(cfg.MaxClients, 10_000)
+	cfg.MaxTargetsPerClient = cmp.Or(cfg.MaxTargetsPerClient, 64)
 	if cfg.MaxFailures < 1 || cfg.MaxFailures > 1_000 || cfg.MaxClients < 1 || cfg.MaxClients > 100_000 || cfg.MaxTargetsPerClient < 1 || cfg.MaxTargetsPerClient > 10_000 || cfg.Window < time.Second || cfg.Window > 24*time.Hour {
 		return BruteForceConfig{}, fmt.Errorf("brute_force requires max_failures 1..1000, max_clients 1..100000, max_targets_per_client 1..10000, and window 1s..24h")
 	}
@@ -518,18 +481,10 @@ func ValidatedBruteForce(cfg BruteForceConfig) (BruteForceConfig, error) {
 // ValidatedUnknownRouteScan limits every retained dimension. The raw paths are
 // attacker input, so capacity is part of correctness rather than tuning.
 func ValidatedUnknownRouteScan(cfg UnknownRouteScanConfig) (UnknownRouteScanConfig, error) {
-	if cfg.DistinctPaths == 0 {
-		cfg.DistinctPaths = 8
-	}
-	if cfg.Window == 0 {
-		cfg.Window = 5 * time.Minute
-	}
-	if cfg.MaxClients == 0 {
-		cfg.MaxClients = 10_000
-	}
-	if cfg.MaxPathsPerClient == 0 {
-		cfg.MaxPathsPerClient = 64
-	}
+	cfg.DistinctPaths = cmp.Or(cfg.DistinctPaths, 8)
+	cfg.Window = cmp.Or(cfg.Window, 5*time.Minute)
+	cfg.MaxClients = cmp.Or(cfg.MaxClients, 10_000)
+	cfg.MaxPathsPerClient = cmp.Or(cfg.MaxPathsPerClient, 64)
 	if cfg.DistinctPaths < 2 || cfg.DistinctPaths > cfg.MaxPathsPerClient || cfg.MaxPathsPerClient > 10_000 || cfg.MaxClients < 1 || cfg.MaxClients > 100_000 || cfg.Window < time.Second || cfg.Window > 24*time.Hour {
 		return UnknownRouteScanConfig{}, fmt.Errorf("unknown_route_scanning requires distinct_paths 2..max_paths_per_client, max_paths_per_client <= 10000, max_clients 1..100000, and window 1s..24h")
 	}
@@ -539,18 +494,10 @@ func ValidatedUnknownRouteScan(cfg UnknownRouteScanConfig) (UnknownRouteScanConf
 // ValidatedObjectEnumeration limits every retained dimension. Identifiers are
 // attacker input, so capacity is part of correctness rather than tuning.
 func ValidatedObjectEnumeration(cfg ObjectEnumerationConfig) (ObjectEnumerationConfig, error) {
-	if cfg.DistinctIDs == 0 {
-		cfg.DistinctIDs = 20
-	}
-	if cfg.Window == 0 {
-		cfg.Window = 5 * time.Minute
-	}
-	if cfg.MaxClients == 0 {
-		cfg.MaxClients = 10_000
-	}
-	if cfg.MaxIDsPerClient == 0 {
-		cfg.MaxIDsPerClient = 256
-	}
+	cfg.DistinctIDs = cmp.Or(cfg.DistinctIDs, 20)
+	cfg.Window = cmp.Or(cfg.Window, 5*time.Minute)
+	cfg.MaxClients = cmp.Or(cfg.MaxClients, 10_000)
+	cfg.MaxIDsPerClient = cmp.Or(cfg.MaxIDsPerClient, 256)
 	if cfg.DistinctIDs < 2 || cfg.DistinctIDs > cfg.MaxIDsPerClient || cfg.MaxIDsPerClient > 10_000 || cfg.MaxClients < 1 || cfg.MaxClients > 100_000 || cfg.Window < time.Second || cfg.Window > 24*time.Hour {
 		return ObjectEnumerationConfig{}, fmt.Errorf("object_enumeration requires distinct_ids 2..max_ids_per_client, max_ids_per_client <= 10000, max_clients 1..100000, and window 1s..24h")
 	}
@@ -581,12 +528,8 @@ func validateObjectTemplates(routes RoutesConfig) error {
 // ValidatedObjectOwnership fills defaults and bounds the response buffer.
 // Settings uses it too, so a hand-written override is held to the same rules.
 func ValidatedObjectOwnership(cfg ObjectOwnershipConfig) (ObjectOwnershipConfig, error) {
-	if cfg.OnUnverifiable == "" {
-		cfg.OnUnverifiable = "deny"
-	}
-	if cfg.MaxBodyBytes == 0 {
-		cfg.MaxBodyBytes = 1 << 20
-	}
+	cfg.OnUnverifiable = cmp.Or(cfg.OnUnverifiable, "deny")
+	cfg.MaxBodyBytes = cmp.Or(cfg.MaxBodyBytes, 1<<20)
 	if cfg.OnUnverifiable != "deny" && cfg.OnUnverifiable != "allow" {
 		return ObjectOwnershipConfig{}, fmt.Errorf("object_ownership.on_unverifiable must be deny or allow, not %q", cfg.OnUnverifiable)
 	}
@@ -628,9 +571,7 @@ func validateOwnership(cfg *Config) error {
 	}
 
 	jwt := &cfg.Identity.JWT
-	if jwt.UserClaim == "" {
-		jwt.UserClaim = "sub"
-	}
+	jwt.UserClaim = cmp.Or(jwt.UserClaim, "sub")
 	switch jwt.Algorithm {
 	case "HS256":
 		if jwt.SecretEnv == "" && jwt.Secret == "" {

@@ -23,7 +23,7 @@ func (w *waitingWriter) WriteEvent(ctx context.Context, _ Event) error {
 
 func TestStalledStorageCannotHoldAResponseOrGrowTheQueue(t *testing.T) {
 	store := &waitingWriter{started: make(chan struct{}, 2), ended: make(chan error, 2)}
-	writer := NewAsyncWriter(store, 1, time.Minute)
+	writer := NewNamedAsyncWriter(store, 1, time.Minute, "")
 	defer writer.Close()
 	if err := writer.WriteEvent(context.Background(), Event{}); err != nil {
 		t.Fatal(err)
@@ -64,7 +64,7 @@ func TestStalledStorageCannotHoldAResponseOrGrowTheQueue(t *testing.T) {
 
 func TestAsyncWriterBoundsEachWriteAndCancelsOnClose(t *testing.T) {
 	store := &waitingWriter{started: make(chan struct{}, 2), ended: make(chan error, 2)}
-	writer := NewAsyncWriter(store, 1, 10*time.Millisecond)
+	writer := NewNamedAsyncWriter(store, 1, 10*time.Millisecond, "")
 	defer writer.Close()
 	if err := writer.WriteEvent(context.Background(), Event{}); err != nil {
 		t.Fatal(err)

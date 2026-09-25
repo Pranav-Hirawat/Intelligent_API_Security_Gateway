@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from iasg.adaptive.config import AdaptiveConfig
+from iasg.adaptive.config import AdaptiveConfig, GuardrailConfig
 from iasg.campaigns.repository import CONTINUATION_WINDOW, CampaignRepository
 from iasg.models import Campaign
 from iasg.store.memory import MemoryStore
@@ -176,9 +176,7 @@ def test_the_same_behaviour_much_later_is_a_new_campaign():
 
 def test_a_block_expiring_still_counts_as_the_same_campaign():
     """The window has to outlast the longest policy TTL or rotation never matches."""
-    from iasg.policy.agent import TTL
-
-    assert CONTINUATION_WINDOW.total_seconds() > max(TTL.values())
+    assert CONTINUATION_WINDOW.total_seconds() > GuardrailConfig().maximum_policy_duration_seconds
 
 
 def test_raising_the_policy_ceiling_widens_the_continuation_window():
