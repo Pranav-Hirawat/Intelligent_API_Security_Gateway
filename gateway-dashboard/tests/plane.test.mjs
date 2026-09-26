@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-  readAlerts, readCampaigns, readHeartbeat, readLearned, readPolicies, readPolicyFor, scanKeys,
+  coalescePolicies, readAlerts, readCampaigns, readHeartbeat, readLearned, readPolicies, readPolicyFor, scanKeys,
 } from "../lib/plane.js";
 
 // Just enough of a Redis client for these readers.
@@ -68,6 +68,25 @@ test("policies show what Redis says is left, and read both key shapes", async ()
   assert.equal((await readPolicyFor(redis, "203.0.113.5")).policyId, "p1");
   assert.equal(await readPolicyFor(redis, "198.51.100.1"), null);
   assert.deepEqual(await readPolicies(fakeRedis()), []);
+});
+
+test("policy rows combine endpoint and client scopes for one identity", () => {
+  const policies = coalescePolicies([
+    {
+      policyId: "client", ip: "198.51.100.55", action: "throttle", confidence: 0.8,
+      expiresIn: 420, method: "", routeTemplate: "",
+    },
+    {
+      policyId: "login", ip: "198.51.100.55", action: "throttle", confidence: 0.88,
+      expiresIn: 480, method: "POST", routeTemplate: "/api/login",
+    },
+  ]);
+
+  assert.equal(policies.length, 1, "one incident must not render as duplicate policy rows");
+  assert.equal(policies[0].policyCount, 2);
+  assert.deepEqual(policies[0].scopes, ["Any request", "POST /api/login"]);
+  assert.equal(policies[0].expiresIn, 420, "the earliest scope expiry must remain visible");
+  assert.equal(policies[0].policyId, "login", "the primary policy still links back to its durable record");
 });
 
 test("alerts read from the stream, and a stream that does not exist yet is no alerts", async () => {

@@ -58,6 +58,9 @@ testing/jmeter/*
 !testing/jmeter/*.jmx
 !testing/jmeter/users.csv
 
+# Student-run functional test plans, screenshots, and JMeter result exports.
+testing/functional-testing/
+
 # Database
 *.db
 *.sqlite

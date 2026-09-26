@@ -15,7 +15,10 @@ test("the adaptive page exposes the required mode boundary text", async () => {
   const page = await readFile(new URL("../app/(console)/adaptive/page.jsx", import.meta.url), "utf8");
   assert.match(page, /Adaptive learning: active in all modes\./);
   assert.match(page, /Current effective mode/);
-  assert.match(page, /Manual emergency overrides take precedence/);
+  assert.match(page, /Automatic action limit/);
+  assert.match(page, /Settings saved/);
+  assert.doesNotMatch(page, /Emergency override/);
+  assert.doesNotMatch(page, /Active policies/);
   assert.match(page, /Advanced settings/);
   assert.equal(effectiveModeText("automatic"), "Current effective mode: Automatic bounded enforcement");
 });

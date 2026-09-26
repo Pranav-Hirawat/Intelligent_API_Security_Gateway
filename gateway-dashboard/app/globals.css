@@ -2548,6 +2548,17 @@ tbody tr:hover td {
 .mode-summary span { color: var(--muted); }
 .mode-summary span:first-child { width: 100%; color: var(--text); font-weight: 650; }
 .mode-overview > .act { margin: 0 12px 12px; }
+.adaptive-choice-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 0 12px 12px; }
+.adaptive-choice-group { min-width: 0; margin: 0; padding: 10px; border: 1px solid var(--line); }
+.adaptive-choice-group legend { padding: 0 4px; color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.adaptive-choice-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.adaptive-choice-cards.two-up { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.adaptive-choice { display: flex; align-items: center; justify-content: center; gap: 5px; min-height: 38px; padding: 7px; border: 1px solid var(--line); background: var(--bg-elev); color: var(--muted); cursor: pointer; text-align: center; }
+.adaptive-choice:hover { border-color: var(--accent); color: var(--text); }
+.adaptive-choice.selected { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.adaptive-choice input { accent-color: var(--accent); }
+.adaptive-choice strong { font-size: 12px; }
+.adaptive-saved-modal .eyebrow { margin: 0 0 4px; }
 .section-note { margin: 3px 0 0; color: var(--muted); font-size: 12px; font-weight: 400; line-height: 1.45; }
 .advanced-settings { margin-top: 14px; }
 .advanced-settings > summary { padding: 12px; color: var(--text); cursor: pointer; font-weight: 700; }
@@ -2571,6 +2582,7 @@ tbody tr:hover td {
 @media (max-width: 760px) {
   .mode-banner { flex-direction: column; }
   .mode-cards { grid-template-columns: 1fr; }
+  .adaptive-choice-grid { grid-template-columns: 1fr; }
   .mode-card { min-height: 0; }
   .event-details-grid { grid-template-columns: 1fr; }
 }

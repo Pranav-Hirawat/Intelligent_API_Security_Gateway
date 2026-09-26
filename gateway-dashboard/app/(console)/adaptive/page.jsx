@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHead } from "@/app/ui/chrome";
-import { actionLabel, formatTime, formatTtl } from "@/app/ui/format";
+import { actionLabel, formatTime } from "@/app/ui/format";
 import { DecisionExplanation, Field } from "@/app/ui/parts";
 import { MODE_OPTIONS, effectiveModeText, modeCopy } from "@/lib/adaptive-mode.mjs";
 
@@ -20,12 +20,7 @@ export default function AdaptivePage() {
   const [busy, setBusy] = useState("");
   const [advancedSection, setAdvancedSection] = useState("guardrails");
   const [confirmAdvancedSave, setConfirmAdvancedSave] = useState(false);
-  const [override, setOverride] = useState({
-    target_identity: "",
-    action: "temp_block",
-    duration_seconds: 900,
-    reason: "",
-  });
+  const [savedConfig, setSavedConfig] = useState(null);
 
   const load = useCallback(async () => {
     const response = await fetch("/api/adaptive", { cache: "no-store" });
@@ -64,13 +59,22 @@ export default function AdaptivePage() {
     }
     setData((current) => ({ ...current, config: value.config }));
     setDraft(structuredClone(value.config));
+    setSavedConfig(value.config);
     await load();
     return true;
   }
 
-  function saveMode() {
+  function saveChoices() {
     if (!data.config || !draft) return;
-    saveConfig({ ...structuredClone(data.config), mode: draft.mode }, "mode");
+    saveConfig({
+      ...structuredClone(data.config),
+      mode: draft.mode,
+      guardrails: {
+        ...data.config.guardrails,
+        maximum_automatic_action: draft.guardrails.maximum_automatic_action,
+        behavioural_throttle_enabled: draft.guardrails.behavioural_throttle_enabled,
+      },
+    }, "choices");
   }
 
   async function decide(row, decision) {
@@ -98,21 +102,6 @@ export default function AdaptivePage() {
     const value = await response.json();
     setBusy("");
     if (!response.ok) return setError(value.error || "decision rejected");
-    await load();
-  }
-
-  async function sendOverride(event) {
-    event.preventDefault();
-    setBusy("override");
-    const response = await fetch("/api/adaptive/overrides", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(override),
-    });
-    const value = await response.json();
-    setBusy("");
-    if (!response.ok) return setError(value.error || "override rejected");
-    setOverride((row) => ({ ...row, target_identity: "", reason: "" }));
     await load();
   }
 
@@ -183,13 +172,51 @@ export default function AdaptivePage() {
             <span>Every policy expires; manual overrides take precedence.</span>
           </div>
 
-          <button
-            className="act primary"
-            type="button"
-            disabled={Boolean(busy) || selectedMode === effectiveMode}
-            onClick={saveMode}
-          >
-            {busy === "mode" ? "Applying mode..." : "Apply enforcement mode"}
+          <div className="adaptive-choice-grid">
+            <fieldset className="adaptive-choice-group" aria-label="Automatic action limit">
+              <legend>Automatic action limit</legend>
+              <div className="adaptive-choice-cards">
+                {ACTIONS.map((action) => (
+                  <label
+                    key={action}
+                    className={"adaptive-choice" + (draft.guardrails.maximum_automatic_action === action ? " selected" : "")}
+                  >
+                    <input
+                      type="radio"
+                      name="automatic-action-limit"
+                      value={action}
+                      checked={draft.guardrails.maximum_automatic_action === action}
+                      onChange={() => edit("guardrails", "maximum_automatic_action", action)}
+                    />
+                    <strong>{actionLabel(action)}</strong>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+
+            <fieldset className="adaptive-choice-group" aria-label="Behavioural endpoint throttle">
+              <legend>Behavioural endpoint throttle</legend>
+              <div className="adaptive-choice-cards two-up">
+                {[[false, "Off"], [true, "On"]].map(([value, label]) => (
+                  <label
+                    key={String(value)}
+                    className={"adaptive-choice" + (Boolean(draft.guardrails.behavioural_throttle_enabled) === value ? " selected" : "")}
+                  >
+                    <input
+                      type="radio"
+                      name="behavioural-throttle"
+                      checked={Boolean(draft.guardrails.behavioural_throttle_enabled) === value}
+                      onChange={() => edit("guardrails", "behavioural_throttle_enabled", value)}
+                    />
+                    <strong>{label}</strong>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          </div>
+
+          <button className="act primary" type="button" disabled={Boolean(busy)} onClick={saveChoices}>
+            {busy === "choices" ? "Saving choices..." : "Save enforcement choices"}
           </button>
         </section>
       ) : null}
@@ -287,80 +314,11 @@ export default function AdaptivePage() {
         </div>
       </section>
 
-      <section className="workbench">
-        <article className="card">
-          <div className="card-head">
-            <div>
-              <h2>Active policies</h2>
-              <p className="section-note">Gateway policies currently active in the expiring policy store.</p>
-            </div>
-            <span>{data.activePolicies?.length || 0}</span>
-          </div>
-          <ul className="decision-list">
-            {data.activePolicies?.length ? (
-              data.activePolicies.map((row) => (
-                <li key={row.policyId}>
-                  <div>
-                    <b>{row.ip}</b> <span className="tag">{actionLabel(row.action)}</span>{" "}
-                    <small>
-                      {formatTtl(row.expiresIn)} · {row.method} {row.routeTemplate}
-                    </small>
-                  </div>
-                  <DecisionExplanation explanation={row.explanation} riskScore={row.riskScore} confidence={row.confidence} />
-                </li>
-              ))
-            ) : (
-              <li className="empty">No active gateway policies.</li>
-            )}
-          </ul>
-        </article>
-
-        <article className="card">
-          <div className="card-head">
-            <h2>Emergency override</h2>
-            <span>manual precedence</span>
-          </div>
-          <p className="section-note">
-            Manual emergency overrides take precedence over adaptive endpoint policy and gateway reflex.
-          </p>
-          <form className="form" onSubmit={sendOverride}>
-            <Field.Text
-              label="Client IP"
-              value={override.target_identity}
-              onChange={(value) => setOverride({ ...override, target_identity: value })}
-            />
-            <Field.Select
-              label="Action"
-              value={override.action}
-              options={["allow", "temp_block"]}
-              onChange={(value) => setOverride({ ...override, action: value })}
-              optionLabel={actionLabel}
-            />
-            <Field.Number
-              label="Duration seconds"
-              value={override.duration_seconds}
-              onChange={(value) => setOverride({ ...override, duration_seconds: Number(value) })}
-            />
-            <Field.Text
-              label="Reason"
-              value={override.reason}
-              onChange={(value) => setOverride({ ...override, reason: value })}
-            />
-            <button className="act primary" disabled={Boolean(busy) || !override.target_identity}>
-              {busy === "override" ? "Queueing override..." : "Queue override"}
-            </button>
-          </form>
-        </article>
-      </section>
-
       <section className="card">
         <div className="card-head">
           <div>
-            <h2>Baseline and decision inspection</h2>
-            <p className="section-note">
-              Baselines learn in every mode. Open any decision explanation to inspect its evidence,
-              baseline deviation and guardrails.
-            </p>
+            <h2>Endpoint learning</h2>
+            <p className="section-note">Learning stays active in every mode.</p>
           </div>
           <span>{data.baselines?.length || 0} normalized endpoints</span>
         </div>
@@ -544,6 +502,30 @@ export default function AdaptivePage() {
               </button>
               <button type="button" className="act primary" disabled={Boolean(busy)} onClick={saveAdvancedSettings}>
                 {busy === "advanced" ? "Saving..." : "Save settings"}
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {savedConfig ? (
+        <div className="modal-overlay" onMouseDown={() => setSavedConfig(null)}>
+          <section
+            className="modal-card adaptive-saved-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="adaptive-settings-saved-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <p className="eyebrow">Saved</p>
+            <h2 id="adaptive-settings-saved-title">Settings saved</h2>
+            <p>
+              Adaptive configuration v{savedConfig.version} is now stored. The control plane uses it
+              on its next cycle.
+            </p>
+            <div className="modal-actions">
+              <button type="button" className="act primary" onClick={() => setSavedConfig(null)} autoFocus>
+                Continue
               </button>
             </div>
           </section>

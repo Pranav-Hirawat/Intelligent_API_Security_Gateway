@@ -51,8 +51,8 @@ export default function PolicyPage() {
 
   async function removePolicy(policy) {
     if (!window.confirm(
-      `Remove the active ${actionLabel(policy.action)} policy for ${policy.ip}? ` +
-      "This takes effect immediately. The agent can recreate it if the campaign remains active.",
+      `Remove all ${policy.policyCount || 1} active policy scope${policy.policyCount === 1 ? "" : "s"} for ${policy.ip}? ` +
+      "This takes effect immediately. The agent can recreate them if the campaign remains active.",
     )) return;
     await deletePolicy(policy.ip);
   }
@@ -76,7 +76,7 @@ export default function PolicyPage() {
       </section>
 
       <section className="metrics">
-        <Metric label="Active rules" value={policies.length} detail="Redis policy keys in force" />
+        <Metric label="Protected addresses" value={policies.length} detail="one combined row per identity" />
         <Metric label="Blocked addresses" value={blocked} detail="temp block, right now" />
         <Metric label="Expiring within the hour" value={expiringSoon} detail="TTL running out" />
         <Metric label="Escalated to you" value={escalations.length} detail="raised once per campaign" />
@@ -125,7 +125,7 @@ export default function PolicyPage() {
                 </thead>
                 <tbody>
                   {rows.map((policy, index) => (
-                    <tr key={policy.policyId || `${policy.ip}-${policy.method}-${policy.routeTemplate}`}>
+                    <tr key={policy.policyId || policy.ip}>
                       <td className="mono">{String(index + 1).padStart(2, "0")}</td>
                       <td>
                         <Link href={`/events?ip=${encodeURIComponent(policy.ip)}`} className="mono">
@@ -133,9 +133,11 @@ export default function PolicyPage() {
                         </Link>
                       </td>
                       <td>
-                        {policy.method && policy.routeTemplate
-                          ? `${policy.method} ${policy.routeTemplate}`
-                          : policy.reason || "Any request"}
+                        <strong>{(policy.scopes || [policy.method && policy.routeTemplate ? `${policy.method} ${policy.routeTemplate}` : "Any request"]).join(" + ")}</strong>
+                        {policy.policyCount > 1 ? (
+                          <small className="scope-line">{policy.policyCount} active Redis policy keys combined for this address</small>
+                        ) : null}
+                        {policy.reason ? <small className="scope-line">{policy.reason}</small> : null}
                         <DecisionExplanation
                           explanation={policy.explanation}
                           riskScore={policy.riskScore}
@@ -149,7 +151,7 @@ export default function PolicyPage() {
                           : policy.campaignId && policy.campaignId !== "manual" ? <Link href="/campaigns">campaign #{policy.campaignId}</Link>
                             : <span className="tag">agent</span>}
                       </td>
-                      <td><span className="tag good">Active</span></td>
+                      <td><span className="tag good">Active{policy.policyCount > 1 ? ` · ${policy.policyCount} scopes` : ""}</span></td>
                       <td>
                         <div className="row-actions">
                           {pendingPolicyActions[policy.ip] ? (

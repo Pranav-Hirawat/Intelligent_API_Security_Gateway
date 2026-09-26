@@ -93,7 +93,7 @@ export async function readPolicies(redis) {
     Promise.all(keys.map((key) => redis.ttl(key))),
   ]);
 
-  return keys
+  const policies = keys
     .map((key, i) => {
       const decision = parseJson(values[i]);
       if (!decision) return null;
@@ -121,8 +121,67 @@ export async function readPolicies(redis) {
         expiresIn: Number(ttls[i] ?? -1),
       };
     })
-    .filter(Boolean)
-    .sort((a, b) => b.confidence - a.confidence);
+    .filter(Boolean);
+
+  // One address can legitimately have both a broad campaign decision and a
+  // narrower endpoint decision. The gateway needs both keys, but presenting
+  // them as unrelated policies makes one incident look duplicated. Collapse
+  // only the console read model: enforcement still reads every Redis key.
+  return coalescePolicies(policies);
+}
+
+const ACTION_PRIORITY = {
+  monitor: 0,
+  allow: 0,
+  throttle: 1,
+  temp_block: 2,
+  temporary_block: 2,
+  block: 2,
+  escalate: 3,
+};
+
+function scopeLabel(policy) {
+  return policy.method && policy.routeTemplate
+    ? `${policy.method} ${policy.routeTemplate}`
+    : "Any request";
+}
+
+/**
+ * Make one operator-facing policy row for each protected identity.
+ *
+ * A policy page action is already identity-wide: DELETE removes the broad
+ * key and all endpoint siblings, and an instruction queues one identity. The
+ * read model should have that same unit of work while retaining every scope
+ * in `scopes` for inspection and export.
+ */
+export function coalescePolicies(policies) {
+  const byIP = new Map();
+  for (const policy of policies) {
+    const group = byIP.get(policy.ip) || [];
+    group.push(policy);
+    byIP.set(policy.ip, group);
+  }
+
+  return [...byIP.values()]
+    .map((group) => {
+      const ranked = [...group].sort((left, right) => {
+        const action = (ACTION_PRIORITY[right.action] || 0) - (ACTION_PRIORITY[left.action] || 0);
+        if (action) return action;
+        return right.confidence - left.confidence;
+      });
+      const primary = ranked[0];
+      const scopes = [...new Set(group.map(scopeLabel))];
+      return {
+        ...primary,
+        policyIds: group.map((policy) => policy.policyId),
+        policyCount: group.length,
+        scopes,
+        // The operator must see the first scope that will lapse, not the
+        // longest-lived sibling that would hide an imminent change.
+        expiresIn: Math.min(...group.map((policy) => policy.expiresIn)),
+      };
+    })
+    .sort((left, right) => right.confidence - left.confidence);
 }
 
 export async function readAlerts(redis) {

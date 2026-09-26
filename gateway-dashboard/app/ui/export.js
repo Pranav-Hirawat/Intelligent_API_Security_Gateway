@@ -128,6 +128,7 @@ export const CAMPAIGN_COLUMNS = [
 
 export const POLICY_COLUMNS = [
   { label: "ip", value: (p) => p.ip },
+  { label: "scopes", value: (p) => (p.scopes || []).join(" | ") },
   { label: "action", value: (p) => p.action },
   { label: "expiresIn", value: (p) => p.expiresIn },
   { label: "campaignId", value: (p) => p.campaignId },
