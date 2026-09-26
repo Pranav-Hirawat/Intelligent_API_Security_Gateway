@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHead } from "@/app/ui/chrome";
 import { actionLabel, formatTime } from "@/app/ui/format";
 import { DecisionExplanation, Field } from "@/app/ui/parts";
-import { MODE_OPTIONS, effectiveModeText, modeCopy } from "@/lib/adaptive-mode.mjs";
+import { MODE_OPTIONS } from "@/lib/adaptive-mode.mjs";
 
 const ACTIONS = ["monitor", "throttle", "temp_block"];
 
@@ -41,8 +41,8 @@ export default function AdaptivePage() {
     [data.recommendations],
   );
   const effectiveMode = data.config?.mode || draft?.mode || "monitor";
-  const effectiveCopy = modeCopy(effectiveMode);
   const selectedMode = draft?.mode || effectiveMode;
+  const savedMode = MODE_OPTIONS.find((option) => option.value === effectiveMode);
 
   async function saveConfig(config, key) {
     setBusy(key);
@@ -136,15 +136,15 @@ export default function AdaptivePage() {
         <section className="card mode-overview">
           <div className="mode-banner">
             <div>
-              <p className="eyebrow">Current effective mode</p>
-              <h2>{effectiveModeText(effectiveMode)}</h2>
-              <p>Adaptive learning: active in all modes.</p>
+              <p className="eyebrow">Enforcement</p>
+              <h2>How should recommendations be applied?</h2>
+              <p>Learning always stays on; this only controls policy creation.</p>
             </div>
-            <span className="tag good">configuration v{data.config?.version || draft.version}</span>
+            <span className="tag good">Saved: {savedMode?.label || "Monitor"}</span>
           </div>
 
           <fieldset className="mode-cards" aria-label="Enforcement mode">
-            <legend>Select enforcement mode</legend>
+            <legend>Choose a mode</legend>
             {MODE_OPTIONS.map((option) => (
               <label
                 key={option.value}
@@ -158,69 +158,50 @@ export default function AdaptivePage() {
                   onChange={() => setDraft({ ...draft, mode: option.value })}
                 />
                 <strong>{option.label}</strong>
-                <span>{option.behaviour}</span>
+                <span>
+                  {option.value === "monitor"
+                    ? "Review only"
+                    : option.value === "manual"
+                      ? "Require approval"
+                      : "Apply within limits"}
+                </span>
               </label>
             ))}
           </fieldset>
 
-          <div className="mode-summary">
-            <span>{effectiveCopy.behaviour}</span>
-            <span>
-              Limit: {actionLabel(draft.guardrails.maximum_automatic_action)} ·{" "}
-              {draft.guardrails.maximum_policy_duration_seconds}s max TTL
-            </span>
-            <span>Every policy expires; manual overrides take precedence.</span>
-          </div>
+          <p className="mode-summary">Policies always expire; detailed guardrails are under Advanced settings.</p>
 
-          <div className="adaptive-choice-grid">
-            <fieldset className="adaptive-choice-group" aria-label="Automatic action limit">
-              <legend>Automatic action limit</legend>
-              <div className="adaptive-choice-cards">
-                {ACTIONS.map((action) => (
-                  <label
-                    key={action}
-                    className={"adaptive-choice" + (draft.guardrails.maximum_automatic_action === action ? " selected" : "")}
-                  >
-                    <input
-                      type="radio"
-                      name="automatic-action-limit"
-                      value={action}
-                      checked={draft.guardrails.maximum_automatic_action === action}
-                      onChange={() => edit("guardrails", "maximum_automatic_action", action)}
-                    />
-                    <strong>{actionLabel(action)}</strong>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-
-            <fieldset className="adaptive-choice-group" aria-label="Behavioural endpoint throttle">
-              <legend>Behavioural endpoint throttle</legend>
-              <div className="adaptive-choice-cards two-up">
-                {[[false, "Off"], [true, "On"]].map(([value, label]) => (
-                  <label
-                    key={String(value)}
-                    className={"adaptive-choice" + (Boolean(draft.guardrails.behavioural_throttle_enabled) === value ? " selected" : "")}
-                  >
-                    <input
-                      type="radio"
-                      name="behavioural-throttle"
-                      checked={Boolean(draft.guardrails.behavioural_throttle_enabled) === value}
-                      onChange={() => edit("guardrails", "behavioural_throttle_enabled", value)}
-                    />
-                    <strong>{label}</strong>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-          </div>
+          {selectedMode === "automatic" ? (
+            <div className="automatic-safeguards">
+              <label>
+                <span>Automatic action cap</span>
+                <select
+                  value={draft.guardrails.maximum_automatic_action}
+                  onChange={(event) => edit("guardrails", "maximum_automatic_action", event.target.value)}
+                >
+                  {ACTIONS.map((action) => (
+                    <option key={action} value={action}>{actionLabel(action)}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="compact-toggle">
+                <input
+                  type="checkbox"
+                  checked={Boolean(draft.guardrails.behavioural_throttle_enabled)}
+                  onChange={(event) => edit("guardrails", "behavioural_throttle_enabled", event.target.checked)}
+                />
+                <span>Use learned endpoint rates for throttling</span>
+              </label>
+            </div>
+          ) : null}
 
           <button className="act primary" type="button" disabled={Boolean(busy)} onClick={saveChoices}>
-            {busy === "choices" ? "Saving choices..." : "Save enforcement choices"}
+            {busy === "choices" ? "Saving..." : "Save selection"}
           </button>
         </section>
       ) : null}
 
+      {pending.length ? (
       <section className="card">
         <div className="card-head">
           <div>
@@ -247,8 +228,7 @@ export default function AdaptivePage() {
               </tr>
             </thead>
             <tbody>
-              {pending.length ? (
-                pending.map((row) => (
+              {pending.map((row) => (
                   <tr key={row.policyId}>
                     <td className="mono">
                       {row.targetIdentity}
@@ -301,19 +281,28 @@ export default function AdaptivePage() {
                       </div>
                     </td>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="7" className="empty">
-                    No recommendations await approval.
-                  </td>
-                </tr>
-              )}
+                ))}
             </tbody>
           </table>
         </div>
       </section>
+      ) : null}
 
+      {!pending.length && !data.baselines?.length && !data.audit?.length ? (
+        <section className="card adaptive-empty-state">
+          <div>
+            <h2>No adaptive activity yet</h2>
+            <p>Recommendations, learned endpoints, and the audit trail will appear here when available.</p>
+          </div>
+          <div className="activity-counts" aria-label="Adaptive activity counts">
+            <span>0 pending</span>
+            <span>0 endpoints</span>
+            <span>0 audit events</span>
+          </div>
+        </section>
+      ) : null}
+
+      {data.baselines?.length ? (
       <section className="card">
         <div className="card-head">
           <div>
@@ -337,8 +326,7 @@ export default function AdaptivePage() {
               </tr>
             </thead>
             <tbody>
-              {data.baselines?.length ? (
-                data.baselines.map((row) => (
+              {data.baselines.map((row) => (
                   <tr key={row.method + " " + row.routeTemplate}>
                     <td>
                       <span className="method">{row.method}</span> {row.routeTemplate}
@@ -355,19 +343,14 @@ export default function AdaptivePage() {
                     <td>{row.threshold}</td>
                     <td>{formatTime(row.lastUpdate)}</td>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="8" className="empty">
-                    No completed trusted windows yet.
-                  </td>
-                </tr>
-              )}
+                ))}
             </tbody>
           </table>
         </div>
       </section>
+      ) : null}
 
+      {data.audit?.length ? (
       <section className="card">
         <div className="card-head">
           <div>
@@ -391,6 +374,7 @@ export default function AdaptivePage() {
           )}
         </ul>
       </section>
+      ) : null}
 
       {draft ? (
         <details className="card advanced-settings">
@@ -422,19 +406,7 @@ export default function AdaptivePage() {
             <section hidden={advancedSection !== "guardrails"}>
               <h3>Policy guardrails</h3>
               <div className="guardrail-grid">
-                <Field.Select
-                  label="Maximum automatic action"
-                  value={draft.guardrails.maximum_automatic_action}
-                  options={ACTIONS}
-                  onChange={(value) => edit("guardrails", "maximum_automatic_action", value)}
-                  optionLabel={actionLabel}
-                />
                 {numberFields("guardrails", GUARDRAIL_LIMITS)}
-                <Field.Toggle
-                  label="Enable ready-baseline behavioural throttles"
-                  checked={Boolean(draft.guardrails.behavioural_throttle_enabled)}
-                  onChange={(value) => edit("guardrails", "behavioural_throttle_enabled", value)}
-                />
                 <Field.Number
                   label="Behavioural throttle minimum deviation"
                   step="0.1"

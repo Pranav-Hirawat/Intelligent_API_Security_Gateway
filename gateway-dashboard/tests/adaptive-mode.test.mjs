@@ -11,11 +11,12 @@ test("each enforcement mode states the lifecycle it changes", () => {
   assert.match(modeCopy("automatic").behaviour, /guardrail-compliant throttle or temporary-block/);
 });
 
-test("the adaptive page exposes the required mode boundary text", async () => {
+test("the adaptive page keeps enforcement choice concise and defers inactive activity", async () => {
   const page = await readFile(new URL("../app/(console)/adaptive/page.jsx", import.meta.url), "utf8");
-  assert.match(page, /Adaptive learning: active in all modes\./);
-  assert.match(page, /Current effective mode/);
-  assert.match(page, /Automatic action limit/);
+  assert.match(page, /Learning always stays on; this only controls policy creation\./);
+  assert.match(page, /Choose a mode/);
+  assert.match(page, /Automatic action cap/);
+  assert.match(page, /No adaptive activity yet/);
   assert.match(page, /Settings saved/);
   assert.doesNotMatch(page, /Emergency override/);
   assert.doesNotMatch(page, /Active policies/);

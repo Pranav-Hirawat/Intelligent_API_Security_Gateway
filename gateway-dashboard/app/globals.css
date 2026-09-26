@@ -2537,27 +2537,25 @@ tbody tr:hover td {
 .eyebrow { color: var(--accent) !important; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .mode-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0; padding: 12px; border: 0; }
 .mode-cards legend { padding: 0; color: var(--muted); font-size: 12px; }
-.mode-card { display: flex; flex-direction: column; gap: 6px; min-height: 132px; padding: 12px; border: 1px solid var(--line); border-radius: 0; cursor: pointer; color: var(--muted); background: var(--bg-elev); }
+.mode-card { display: flex; flex-direction: column; gap: 6px; min-height: 72px; padding: 12px; border: 1px solid var(--line); border-radius: 0; cursor: pointer; color: var(--muted); background: var(--bg-elev); }
 .mode-card:hover { border-color: var(--accent); }
 .mode-card.selected { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); color: var(--text); }
 .mode-card input { accent-color: var(--accent); }
 .mode-card strong { color: var(--text); }
 .mode-card span { font-size: 12px; line-height: 1.45; }
 .mode-card small { margin-top: auto; color: var(--accent); font-weight: 700; }
-.mode-summary { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0 12px 12px; padding: 10px 12px; border-left: 3px solid var(--accent); background: var(--bg-head); font-size: 12px; line-height: 1.45; }
-.mode-summary span { color: var(--muted); }
-.mode-summary span:first-child { width: 100%; color: var(--text); font-weight: 650; }
+.mode-summary { margin: 0 12px 12px; color: var(--muted); font-size: 12px; }
 .mode-overview > .act { margin: 0 12px 12px; }
-.adaptive-choice-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 0 12px 12px; }
-.adaptive-choice-group { min-width: 0; margin: 0; padding: 10px; border: 1px solid var(--line); }
-.adaptive-choice-group legend { padding: 0 4px; color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
-.adaptive-choice-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
-.adaptive-choice-cards.two-up { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.adaptive-choice { display: flex; align-items: center; justify-content: center; gap: 5px; min-height: 38px; padding: 7px; border: 1px solid var(--line); background: var(--bg-elev); color: var(--muted); cursor: pointer; text-align: center; }
-.adaptive-choice:hover { border-color: var(--accent); color: var(--text); }
-.adaptive-choice.selected { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
-.adaptive-choice input { accent-color: var(--accent); }
-.adaptive-choice strong { font-size: 12px; }
+.automatic-safeguards { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin: 0 12px 12px; padding: 10px 12px; background: var(--bg-head); border: 1px solid var(--line); }
+.automatic-safeguards > label:first-child { display: grid; gap: 4px; color: var(--muted); font-size: 12px; }
+.automatic-safeguards select { min-width: 170px; }
+.compact-toggle { display: flex; align-items: center; gap: 7px; min-height: 32px; color: var(--text); font-size: 12px; cursor: pointer; }
+.compact-toggle input { accent-color: var(--accent); }
+.adaptive-empty-state { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 14px; padding: 16px; }
+.adaptive-empty-state h2 { margin: 0 0 4px; font-size: 14px; }
+.adaptive-empty-state p { margin: 0; color: var(--muted); font-size: 12px; }
+.activity-counts { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.activity-counts span { padding: 4px 7px; border: 1px solid var(--line); color: var(--muted); font-size: 11px; white-space: nowrap; }
 .adaptive-saved-modal .eyebrow { margin: 0 0 4px; }
 .section-note { margin: 3px 0 0; color: var(--muted); font-size: 12px; font-weight: 400; line-height: 1.45; }
 .advanced-settings { margin-top: 14px; }
@@ -2582,7 +2580,9 @@ tbody tr:hover td {
 @media (max-width: 760px) {
   .mode-banner { flex-direction: column; }
   .mode-cards { grid-template-columns: 1fr; }
-  .adaptive-choice-grid { grid-template-columns: 1fr; }
+  .automatic-safeguards { align-items: stretch; flex-direction: column; }
+  .adaptive-empty-state { align-items: flex-start; flex-direction: column; }
+  .activity-counts { justify-content: flex-start; }
   .mode-card { min-height: 0; }
   .event-details-grid { grid-template-columns: 1fr; }
 }
