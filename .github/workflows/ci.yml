@@ -205,7 +205,7 @@ jobs:
           platforms: linux/amd64
           push: false
           cache-from: type=gha,scope=ci-${{ matrix.name }}
-          cache-to: type=gha,mode=max,scope=ci-${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=ci-${{ matrix.name }},ignore-error=true
 
   docs:
     name: Documentation
