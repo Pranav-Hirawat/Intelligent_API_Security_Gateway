@@ -67,6 +67,7 @@ nav:
       - Adaptive Policy and Analyst Control: adaptive-policy.md
   - Modules:
       - Proxy Module: modules/proxy-module.md
+      - Attack Detection and Enforcement: modules/enforcement-ownership.md
       - Signal Test Scripts: modules/signal-tests.md
       - Redis Telemetry: modules/redis-telemetry.md
       - Command Center Dashboard: modules/dashboard.md
