@@ -23,7 +23,7 @@ export function validateAdaptive(config) {
   if (b.method !== "median_mad") return "baseline.method must be median_mad";
   if (b.window_seconds !== 60) return "baseline.window_seconds must remain 60";
   if (!integerBetween(b.rolling_windows, 3, 1440)) return "baseline.rolling_windows must be 3..1440";
-  if (!integerBetween(b.warmup_windows, 3, b.rolling_windows)) return "baseline.warmup_windows must be 3..rolling_windows";
+  if (!integerBetween(b.warmup_windows, 1, b.rolling_windows)) return "baseline.warmup_windows must be 1..rolling_windows";
   if (!numberBetween(b.mad_multiplier, 0.1, 20)) return "baseline.mad_multiplier must be 0.1..20";
   if (!numberBetween(b.minimum_mad, 0, 1000)) return "baseline.minimum_mad must be 0..1000";
   if (!integerBetween(b.minimum_threshold_rpm, 1, 100000)) return "minimum endpoint threshold must be 1..100000";
