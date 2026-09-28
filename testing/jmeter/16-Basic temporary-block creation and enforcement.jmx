@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="16 - Basic temporary-block creation and enforcement" enabled="true">
+      <stringProp name="TestPlan.comments">A single-identity, endpoint-scoped demonstration. It sends SQL-injection evidence from one RFC 5737 address to GET /api/products/search, waits for the control plane, verifies an endpoint-scoped temporary_block policy, then sends a normal request to that same endpoint from the same address and expects the gateway to block it. Before running, confirm the stack is healthy, Adaptive mode is automatic, policy enforcement is enabled, and the gateway trusts X-Forwarded-For from this JMeter host. This plan sends attack traffic when run.</stringProp>
+      <boolProp name="TestPlan.functional_mode">false</boolProp>
+      <boolProp name="TestPlan.serialize_threadgroups">true</boolProp>
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="Variables" enabled="true">
+        <collectionProp name="Arguments.arguments">
+          <elementProp name="HOST" elementType="Argument"><stringProp name="Argument.name">HOST</stringProp><stringProp name="Argument.value">${__P(HOST,localhost)}</stringProp><stringProp name="Argument.metadata">=</stringProp></elementProp>
+          <elementProp name="GATEWAY_PORT" elementType="Argument"><stringProp name="Argument.name">GATEWAY_PORT</stringProp><stringProp name="Argument.value">${__P(GATEWAY_PORT,8082)}</stringProp><stringProp name="Argument.metadata">=</stringProp></elementProp>
+          <elementProp name="DASHBOARD_PORT" elementType="Argument"><stringProp name="Argument.name">DASHBOARD_PORT</stringProp><stringProp name="Argument.value">${__P(DASHBOARD_PORT,5177)}</stringProp><stringProp name="Argument.metadata">=</stringProp></elementProp>
+          <elementProp name="ATTACKER_IP" elementType="Argument"><stringProp name="Argument.name">ATTACKER_IP</stringProp><stringProp name="Argument.value">${__P(ATTACKER_IP,203.0.113.150)}</stringProp><stringProp name="Argument.metadata">=</stringProp></elementProp>
+          <elementProp name="POLICY_WAIT_MS" elementType="Argument"><stringProp name="Argument.name">POLICY_WAIT_MS</stringProp><stringProp name="Argument.value">${__P(POLICY_WAIT_MS,45000)}</stringProp><stringProp name="Argument.metadata">=</stringProp></elementProp>
+        </collectionProp>
+      </elementProp>
+    </TestPlan>
+    <hashTree>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="1 - Send SQL-injection evidence from one IP" enabled="true">
+        <stringProp name="ThreadGroup.on_sample_error">CONTINUE</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="100 evidence requests" enabled="true">
+          <stringProp name="LoopController.loops">100</stringProp>
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+        </elementProp>
+        <stringProp name="ThreadGroup.num_threads">1</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">1</stringProp>
+        <boolProp name="ThreadGroup.scheduler">false</boolProp>
+      </ThreadGroup>
+      <hashTree>
+        <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Single attacker identity" enabled="true">
+          <collectionProp name="HeaderManager.headers">
+            <elementProp name="X-Forwarded-For" elementType="Header"><stringProp name="Header.name">X-Forwarded-For</stringProp><stringProp name="Header.value">${ATTACKER_IP}</stringProp></elementProp>
+            <elementProp name="User-Agent" elementType="Header"><stringProp name="Header.name">User-Agent</stringProp><stringProp name="Header.value">iasg-basic-temp-block/1.0</stringProp></elementProp>
+          </collectionProp>
+        </HeaderManager>
+        <hashTree/>
+        <ConstantTimer guiclass="ConstantTimerGui" testclass="ConstantTimer" testname="Keep evidence below flood-reflex traffic" enabled="true"><stringProp name="ConstantTimer.delay">50</stringProp></ConstantTimer>
+        <hashTree/>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="SQL-injection evidence request" enabled="true">
+          <stringProp name="HTTPSampler.domain">${HOST}</stringProp>
+          <stringProp name="HTTPSampler.port">${GATEWAY_PORT}</stringProp>
+          <stringProp name="HTTPSampler.protocol">http</stringProp>
+          <stringProp name="HTTPSampler.path">/api/products/search</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="Query">
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="q" elementType="HTTPArgument"><boolProp name="HTTPArgument.always_encode">true</boolProp><stringProp name="Argument.name">q</stringProp><stringProp name="Argument.value">' OR 1=1 --</stringProp><stringProp name="Argument.metadata">=</stringProp><boolProp name="HTTPArgument.use_equals">true</boolProp></elementProp>
+            </collectionProp>
+          </elementProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+      </hashTree>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="2 - Wait for control-plane decision and gateway snapshot" enabled="true">
+        <stringProp name="ThreadGroup.on_sample_error">STOPTEST</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Run once" enabled="true"><stringProp name="LoopController.loops">1</stringProp><boolProp name="LoopController.continue_forever">false</boolProp></elementProp>
+        <stringProp name="ThreadGroup.num_threads">1</stringProp><stringProp name="ThreadGroup.ramp_time">1</stringProp><boolProp name="ThreadGroup.scheduler">false</boolProp>
+      </ThreadGroup>
+      <hashTree>
+        <TestAction guiclass="TestActionGui" testclass="TestAction" testname="Wait for the off-path decision" enabled="true"><intProp name="ActionProcessor.action">1</intProp><intProp name="ActionProcessor.target">0</intProp><stringProp name="ActionProcessor.duration">${POLICY_WAIT_MS}</stringProp></TestAction>
+        <hashTree/>
+      </hashTree>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="3 - Verify an endpoint-scoped temporary-block policy exists" enabled="true">
+        <stringProp name="ThreadGroup.on_sample_error">STOPTEST</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Run once" enabled="true"><stringProp name="LoopController.loops">1</stringProp><boolProp name="LoopController.continue_forever">false</boolProp></elementProp>
+        <stringProp name="ThreadGroup.num_threads">1</stringProp><stringProp name="ThreadGroup.ramp_time">1</stringProp><boolProp name="ThreadGroup.scheduler">false</boolProp>
+      </ThreadGroup>
+      <hashTree>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Read live policies from dashboard" enabled="true">
+          <stringProp name="HTTPSampler.domain">${HOST}</stringProp><stringProp name="HTTPSampler.port">${DASHBOARD_PORT}</stringProp><stringProp name="HTTPSampler.protocol">http</stringProp><stringProp name="HTTPSampler.path">/api/campaigns</stringProp><stringProp name="HTTPSampler.method">GET</stringProp><boolProp name="HTTPSampler.follow_redirects">true</boolProp><boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <JSR223Assertion guiclass="TestBeanGUI" testclass="JSR223Assertion" testname="Assert temporary block is scoped to the attacked endpoint" enabled="true">
+            <stringProp name="scriptLanguage">groovy</stringProp>
+            <stringProp name="script"><![CDATA[
+import groovy.json.JsonSlurper
+def payload = new JsonSlurper().parseText(prev.getResponseDataAsString())
+def ip = vars.get('ATTACKER_IP')
+def policy = (payload.policies ?: []).find { row -> row.ip == ip }
+def actionOK = policy?.action in ['temporary_block', 'temp_block']
+def scopeOK = policy?.method == 'GET' && policy?.routeTemplate == '/api/products/search'
+if (!actionOK || !scopeOK) {
+  AssertionResult.setFailure(true)
+  AssertionResult.setFailureMessage('Expected endpoint-scoped temporary block for ' + ip + ' on GET /api/products/search; got ' + policy)
+}
+]]></stringProp>
+          </JSR223Assertion>
+          <hashTree/>
+        </hashTree>
+      </hashTree>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="4 - Same IP is blocked on the same endpoint" enabled="true">
+        <stringProp name="ThreadGroup.on_sample_error">STOPTEST</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Run once" enabled="true"><stringProp name="LoopController.loops">1</stringProp><boolProp name="LoopController.continue_forever">false</boolProp></elementProp>
+        <stringProp name="ThreadGroup.num_threads">1</stringProp><stringProp name="ThreadGroup.ramp_time">1</stringProp><boolProp name="ThreadGroup.scheduler">false</boolProp>
+      </ThreadGroup>
+      <hashTree>
+        <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Same attacker identity for enforcement check" enabled="true">
+          <collectionProp name="HeaderManager.headers"><elementProp name="X-Forwarded-For" elementType="Header"><stringProp name="Header.name">X-Forwarded-For</stringProp><stringProp name="Header.value">${ATTACKER_IP}</stringProp></elementProp></collectionProp>
+        </HeaderManager>
+        <hashTree/>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Normal same-endpoint request after temporary block" enabled="true">
+          <stringProp name="HTTPSampler.domain">${HOST}</stringProp><stringProp name="HTTPSampler.port">${GATEWAY_PORT}</stringProp><stringProp name="HTTPSampler.protocol">http</stringProp><stringProp name="HTTPSampler.path">/api/products/search</stringProp><stringProp name="HTTPSampler.method">GET</stringProp><boolProp name="HTTPSampler.follow_redirects">true</boolProp><boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="Normal query"><collectionProp name="Arguments.arguments"><elementProp name="q" elementType="HTTPArgument"><boolProp name="HTTPArgument.always_encode">true</boolProp><stringProp name="Argument.name">q</stringProp><stringProp name="Argument.value">keyboard</stringProp><stringProp name="Argument.metadata">=</stringProp><boolProp name="HTTPArgument.use_equals">true</boolProp></elementProp></collectionProp></elementProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Assert gateway blocks this endpoint with 403" enabled="true">
+            <collectionProp name="Asserion.test_strings"><stringProp name="0">403</stringProp></collectionProp>
+            <stringProp name="Assertion.custom_message">The gateway did not enforce the endpoint-scoped temporary block.</stringProp>
+            <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+            <boolProp name="Assertion.assume_success">false</boolProp>
+            <intProp name="Assertion.test_type">8</intProp>
+          </ResponseAssertion>
+          <hashTree/>
+        </hashTree>
+      </hashTree>
+      <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree" enabled="true">
+        <boolProp name="ResultCollector.error_logging">false</boolProp>
+        <objProp><name>saveConfig</name><value class="SampleSaveConfiguration"><time>true</time><latency>true</latency><timestamp>true</timestamp><success>true</success><label>true</label><code>true</code><message>true</message><threadName>true</threadName><dataType>true</dataType><encoding>false</encoding><assertions>true</assertions><subresults>false</subresults><responseData>true</responseData><samplerData>true</samplerData><xml>false</xml><fieldNames>true</fieldNames><responseHeaders>true</responseHeaders><requestHeaders>true</requestHeaders><responseDataOnError>true</responseDataOnError><saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage><assertionsResultsToSave>0</assertionsResultsToSave><bytes>true</bytes><sentBytes>true</sentBytes><url>true</url><threadCounts>true</threadCounts><idleTime>true</idleTime><connectTime>true</connectTime></value></objProp>
+        <stringProp name="filename"></stringProp>
+      </ResultCollector>
+      <hashTree/>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>

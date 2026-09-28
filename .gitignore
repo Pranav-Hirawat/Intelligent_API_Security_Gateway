@@ -61,6 +61,9 @@ testing/jmeter/*
 # Student-run functional test plans, screenshots, and JMeter result exports.
 testing/functional-testing/
 
+# Local integration-test plans, screenshots, and JMeter result exports.
+testing/integration-testing/
+
 # Database
 *.db
 *.sqlite

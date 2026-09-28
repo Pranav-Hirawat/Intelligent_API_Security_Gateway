@@ -133,7 +133,7 @@ export default function PolicyPage() {
                         </Link>
                       </td>
                       <td>
-                        <strong>{(policy.scopes || [policy.method && policy.routeTemplate ? `${policy.method} ${policy.routeTemplate}` : "Any request"]).join(" + ")}</strong>
+                        <strong>{(policy.scopes || []).join(" + ")}</strong>
                         {policy.policyCount > 1 ? (
                           <small className="scope-line">{policy.policyCount} active Redis policy keys combined for this address</small>
                         ) : null}

@@ -48,7 +48,7 @@ test("campaigns: active first, then most certain; the id counter and junk are sk
   assert.deepEqual(await readCampaigns(fakeRedis({ "campaign:next_id": "1" })), []);
 });
 
-test("policies show what Redis says is left, and read both key shapes", async () => {
+test("policies show only endpoint-scoped decisions and their remaining life", async () => {
   const redis = fakeRedis(
     {
       "policy:203.0.113.5": JSON.stringify({ action: "temp_block", confidence: 0.6, policy_id: "p1" }),
@@ -61,16 +61,15 @@ test("policies show what Redis says is left, and read both key shapes", async ()
     { ttls: { "policy:203.0.113.5": 120 } },
   );
   const policies = await readPolicies(redis);
-  assert.deepEqual(policies.map((p) => p.ip), ["203.0.113.7", "203.0.113.5"]);
+  assert.deepEqual(policies.map((p) => p.ip), ["203.0.113.7"]);
   assert.equal(policies[0].routeTemplate, "/api/login");
-  assert.equal(policies[1].expiresIn, 120);
   assert.equal(policies[0].source, "agent", "an older policy with no source reads as the agent's");
-  assert.equal((await readPolicyFor(redis, "203.0.113.5")).policyId, "p1");
+  assert.equal(await readPolicyFor(redis, "203.0.113.5"), null);
   assert.equal(await readPolicyFor(redis, "198.51.100.1"), null);
   assert.deepEqual(await readPolicies(fakeRedis()), []);
 });
 
-test("policy rows combine endpoint and client scopes for one identity", () => {
+test("policy rows omit client-wide decisions", () => {
   const policies = coalescePolicies([
     {
       policyId: "client", ip: "198.51.100.55", action: "throttle", confidence: 0.8,
@@ -82,10 +81,10 @@ test("policy rows combine endpoint and client scopes for one identity", () => {
     },
   ]);
 
-  assert.equal(policies.length, 1, "one incident must not render as duplicate policy rows");
-  assert.equal(policies[0].policyCount, 2);
-  assert.deepEqual(policies[0].scopes, ["Any request", "POST /api/login"]);
-  assert.equal(policies[0].expiresIn, 420, "the earliest scope expiry must remain visible");
+  assert.equal(policies.length, 1, "only the endpoint policy is shown");
+  assert.equal(policies[0].policyCount, 1);
+  assert.deepEqual(policies[0].scopes, ["POST /api/login"]);
+  assert.equal(policies[0].expiresIn, 480);
   assert.equal(policies[0].policyId, "login", "the primary policy still links back to its durable record");
 });
 

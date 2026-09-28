@@ -141,22 +141,20 @@ const ACTION_PRIORITY = {
 };
 
 function scopeLabel(policy) {
-  return policy.method && policy.routeTemplate
-    ? `${policy.method} ${policy.routeTemplate}`
-    : "Any request";
+  return `${policy.method} ${policy.routeTemplate}`;
 }
 
 /**
- * Make one operator-facing policy row for each protected identity.
+ * Make one operator-facing endpoint-policy row for each protected identity.
  *
- * A policy page action is already identity-wide: DELETE removes the broad
- * key and all endpoint siblings, and an instruction queues one identity. The
- * read model should have that same unit of work while retaining every scope
- * in `scopes` for inspection and export.
+ * The dashboard deliberately presents only policies that name a method and a
+ * route. Legacy client-wide keys can still be enforced by the gateway, but
+ * they have no endpoint scope to present here.
  */
 export function coalescePolicies(policies) {
   const byIP = new Map();
   for (const policy of policies) {
+    if (!policy.method || !policy.routeTemplate) continue;
     const group = byIP.get(policy.ip) || [];
     group.push(policy);
     byIP.set(policy.ip, group);
