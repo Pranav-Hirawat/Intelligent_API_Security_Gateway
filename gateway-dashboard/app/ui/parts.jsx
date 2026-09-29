@@ -10,6 +10,7 @@ import {
   DISPLAY_TIME_ZONE_LABEL,
   LADDER,
   actionLabel,
+  eventAction,
   canonicalSignals,
   clampRiskScore,
   formatTime,
@@ -497,6 +498,10 @@ const EVENT_ACTION_TONE = {
   throttle: "warn",
   rate_limited: "warn",
   monitor: "dim",
+  ownership_refused: "bad",
+  authentication_required: "bad",
+  body_too_large: "bad",
+  body_unreadable: "bad",
 };
 
 export function EventTable({ events, empty, showRequestNumber = false, showGeo = false, geoByIp = {} }) {
@@ -530,7 +535,8 @@ export function EventTable({ events, empty, showRequestNumber = false, showGeo =
             events.map((event) => {
               const risk = clampRiskScore(event.riskScore);
               const tone = riskTone(risk);
-              const actionTone = EVENT_ACTION_TONE[event.decision] || "ok";
+              const action = eventAction(event);
+              const actionTone = EVENT_ACTION_TONE[action] || "ok";
               return (
                 <tr
                   key={event.id || event.requestId}
@@ -584,7 +590,7 @@ export function EventTable({ events, empty, showRequestNumber = false, showGeo =
                     </div>
                   </td>
                   <td>
-                    <span className={`event-action ${actionTone}`}>{actionLabel(event.decision)}</span>
+                    <span className={`event-action ${actionTone}`}>{actionLabel(action)}</span>
                   </td>
                 </tr>
               );

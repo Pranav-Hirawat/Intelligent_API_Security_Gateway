@@ -23,6 +23,10 @@ const (
 	ReasonRateLimited    = "rate_limited"
 	ReasonBodyTooLarge   = "body_too_large"
 	ReasonBodyUnreadable = "body_unreadable"
+	// The ownership guard answered for the backend: someone else's object,
+	// or a response it could not verify, or no valid token at all.
+	ReasonOwnershipRefused = "ownership_refused"
+	ReasonAuthRequired     = "authentication_required"
 )
 
 // Where a recorded status came from.
@@ -75,7 +79,13 @@ type Upstream struct {
 
 // Origin reports whether the recorded status came from the backend or from the
 // gateway itself.
+//
+// A named gateway reason wins over a backend call: the ownership guard asks the
+// backend and then replaces its answer, and the client got the replacement.
 func (u *Upstream) Origin() string {
+	if u != nil && u.GatewayReason != "" {
+		return OriginGateway
+	}
 	if u != nil && u.Attempted && u.HaveStatus {
 		return OriginBackend
 	}
@@ -126,7 +136,7 @@ func RecordBodySize(r *http.Request, n int64) {
 // fully described by the decision the enforcer recorded.
 func gatewayReasonFor(decision string) string {
 	switch decision {
-	case policy.ActionBlock, policy.ActionTempBlock, policy.ActionEscalate:
+	case policy.ActionBlock, policy.ActionTempBlock, policy.ActionTemporaryBlock, policy.ActionEscalate:
 		return ReasonPolicyBlock
 	case policy.OutcomeRateLimited:
 		return ReasonRateLimited

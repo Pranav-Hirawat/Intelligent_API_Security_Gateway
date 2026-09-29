@@ -4,7 +4,7 @@ import Link from "next/link";
 import { use, useCallback, useEffect, useState } from "react";
 import { PageHead } from "@/app/ui/chrome";
 import {
-  ACTION_TONE, actionLabel, clampRiskScore, formatTime, formatTtl, signalMeta,
+  ACTION_TONE, actionLabel, clampRiskScore, eventAction, formatTime, formatTtl, signalMeta,
 } from "@/app/ui/format";
 import { ActionRow, CampaignCard, DecisionExplanation, EventTable, ExportMenu, Loading } from "@/app/ui/parts";
 import { EVENT_COLUMNS } from "@/app/ui/export";
@@ -172,7 +172,7 @@ export default function IpPage({ params }) {
                     <b>
                       risk {clampRiskScore(event.riskScore ?? evidence.score)}
                       <br />
-                      {actionLabel(event.decision || "allow")}
+                      {actionLabel(eventAction(event))}
                     </b>
                   </li>
                 ))}

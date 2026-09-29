@@ -27,6 +27,7 @@ import (
 	"github.com/Adnan-Safdari/Intelligent_API_Security_Gateway/internal/identity"
 	"github.com/Adnan-Safdari/Intelligent_API_Security_Gateway/internal/netutil"
 	"github.com/Adnan-Safdari/Intelligent_API_Security_Gateway/internal/signals"
+	"github.com/Adnan-Safdari/Intelligent_API_Security_Gateway/internal/telemetry"
 )
 
 // Reasons recorded on the evidence. Only a mismatch and a forged token cross
@@ -157,6 +158,7 @@ func (g *Guard) Middleware(next http.Handler) http.Handler {
 			}
 			g.record(ip, requestID, protected.template, reason, "", "", 0)
 			w.Header().Set("WWW-Authenticate", `Bearer error="invalid_token"`)
+			telemetry.RecordGatewayAnswer(r, telemetry.ReasonAuthRequired)
 			writeJSON(w, http.StatusUnauthorized, `{"success":false,"message":"Authentication required"}`)
 			return
 		}
@@ -173,17 +175,17 @@ func (g *Guard) Middleware(next http.Handler) http.Handler {
 		held := newHeldResponse(w, tun.maxBodyBytes, !tun.denyUnverified)
 		next.ServeHTTP(held, r)
 
-		g.decide(w, held, protected, caller, ip, requestID, tun)
+		g.decide(w, r, held, protected, caller, ip, requestID, tun)
 	})
 }
 
-func (g *Guard) decide(w http.ResponseWriter, held *heldResponse, protected rule, caller identity.Caller, ip, requestID string, tun tunables) {
+func (g *Guard) decide(w http.ResponseWriter, r *http.Request, held *heldResponse, protected rule, caller identity.Caller, ip, requestID string, tun tunables) {
 	status := held.statusCode()
 	unverifiable := func(why string) {
 		g.warnOnce(protected.template, why)
 		g.record(ip, requestID, protected.template, ReasonUnverifiable, caller.ID, "", 0)
 		if tun.denyUnverified {
-			writeNotFound(w)
+			refuse(w, r)
 			return
 		}
 		held.release()
@@ -224,7 +226,7 @@ func (g *Guard) decide(w http.ResponseWriter, held *heldResponse, protected rule
 		}
 		if ownerID != caller.ID {
 			g.record(ip, requestID, protected.template, ReasonOwnerMismatch, caller.ID, ownerID, 0)
-			writeNotFound(w)
+			refuse(w, r)
 			return
 		}
 		g.clear(ip, requestID)
@@ -263,14 +265,14 @@ func (g *Guard) decide(w http.ResponseWriter, held *heldResponse, protected rule
 	g.record(ip, requestID, protected.template, ReasonItemsRemoved, caller.ID, firstForeign, removed)
 	filtered, ok := replace(body, protected.listField, kept)
 	if !ok {
-		writeNotFound(w)
+		refuse(w, r)
 		return
 	}
 	var out bytes.Buffer
 	encoder := json.NewEncoder(&out)
 	encoder.SetEscapeHTML(false)
 	if err := encoder.Encode(filtered); err != nil {
-		writeNotFound(w)
+		refuse(w, r)
 		return
 	}
 	held.header.Del("Content-Length")
@@ -324,6 +326,15 @@ func writeJSON(w http.ResponseWriter, status int, body string) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(status)
 	_, _ = w.Write([]byte(body))
+}
+
+// refuse answers 404 in the backend's place. The backend did answer, but what
+// the client received was written here, and telemetry has to say so: recorded
+// as the backend's own 404 with a decision of "allow", a refused read looks
+// like a missing order that nothing stopped.
+func refuse(w http.ResponseWriter, r *http.Request) {
+	telemetry.RecordGatewayAnswer(r, telemetry.ReasonOwnershipRefused)
+	writeNotFound(w)
 }
 
 // writeNotFound answers the way a correct application does: someone else's

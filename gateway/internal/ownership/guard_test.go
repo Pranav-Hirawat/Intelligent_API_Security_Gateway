@@ -241,3 +241,37 @@ func TestMetricsForOnlyReportsTheRequestThatWasChecked(t *testing.T) {
 		t.Errorf("another request inherited the violation: %+v", ev)
 	}
 }
+
+// A read the guard refused must be recorded as the gateway's answer. Recorded
+// as the backend's own 404, the console showed it as an allowed request for an
+// order that happened not to exist.
+func TestARefusalIsRecordedAsTheGatewaysAnswer(t *testing.T) {
+	h, _ := guardAndHandler(t, config.ObjectOwnershipConfig{})
+	send := func(path, auth string) (*httptest.ResponseRecorder, *telemetry.Upstream) {
+		r, upstream := telemetry.AttachUpstream(httptest.NewRequest(http.MethodGet, path, nil))
+		r.RemoteAddr = "203.0.113.9:1234"
+		if auth != "" {
+			r.Header.Set("Authorization", auth)
+		}
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		return w, upstream
+	}
+
+	for name, tc := range map[string]struct {
+		path, auth, reason string
+		status             int
+	}{
+		"someone else's order": {"/api/orders/2", token(t, map[string]any{"sub": "2"}), telemetry.ReasonOwnershipRefused, http.StatusNotFound},
+		"no token":             {"/api/orders/1", "", telemetry.ReasonAuthRequired, http.StatusUnauthorized},
+	} {
+		w, upstream := send(tc.path, tc.auth)
+		if w.Code != tc.status || upstream.GatewayReason != tc.reason || upstream.Origin() != telemetry.OriginGateway {
+			t.Errorf("%s: status %d reason %q origin %q", name, w.Code, upstream.GatewayReason, upstream.Origin())
+		}
+	}
+
+	if _, upstream := send("/api/orders/1", token(t, map[string]any{"sub": "2"})); upstream.GatewayReason != "" {
+		t.Errorf("the caller's own order was recorded as a refusal: %q", upstream.GatewayReason)
+	}
+}
