@@ -71,6 +71,7 @@ nav:
       - The 17 Algorithms: modules/algorithms.md
   - Dashboard and Testing:
       - Dashboard: modules/dashboard.md
+      - Dashboard and Adaptive Settings: modules/settings-reference.md
       - Signal Test Scripts: modules/signal-tests.md
   - Operations:
       - Run Locally: running-locally.md
