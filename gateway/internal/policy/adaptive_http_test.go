@@ -152,7 +152,8 @@ func TestHTTPRedisOutageFailsOpen(t *testing.T) {
 
 func TestScopedPolicyPreservesOtherSourceOutsideItsScope(t *testing.T) {
 	chain := Chain{
-		fakeLookup{"203.0.113.5": {Action: ActionAllow, Route: "/api/login", Method: "POST"}},
+		// Only a person or the operator's allowlist writes an allow.
+		fakeLookup{"203.0.113.5": {Action: ActionAllow, Route: "/api/login", Method: "POST", Source: "human"}},
 		fakeLookup{"203.0.113.5": {Action: ActionTempBlock}},
 	}
 	h := NewEnforcer(chain, true).Middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) }))

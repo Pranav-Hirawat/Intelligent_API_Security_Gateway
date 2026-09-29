@@ -202,9 +202,12 @@ func live(d Decision) (Decision, bool) {
 	return d, true
 }
 
+// humanPriority marks a decision a person made, which outranks the rest.
+const humanPriority = 3
+
 func decisionPriority(d Decision) int {
 	if d.Source == "human" || d.Source == "manual_override" || d.Mode == "manual_override" {
-		return 3
+		return humanPriority
 	}
 	if d.Source == "approved" {
 		return 2

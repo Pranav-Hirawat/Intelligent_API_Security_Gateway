@@ -2,58 +2,77 @@ package policy
 
 import "time"
 
-// Chain looks decisions up in several sources, in order, and returns the first
-// one found.
+// Chain looks decisions up in several sources and returns the one to enforce.
 //
-// There are two sources and the order between them is a deliberate choice: the
-// decision engine comes first, the gateway's own reflex second.
+// There are two sources: the decision engine and the gateway's own reflex. When
+// both have an opinion about a request, the more severe action wins, and among
+// equals the earlier source -- the engine, whose decision carries the policy id
+// and campaign the console links to.
 //
-// The reflex exists because the decision engine is slow -- a decision takes up to
-// one agent cycle plus one snapshot refresh to arrive. It is a stopgap held by
-// a component that knows only what one detector saw. The decision engine, by the
-// time it has an opinion, has correlated an address with others, weighed a
-// campaign's history, taken account of any human override, and passed the
-// whole thing through simulation.
+// The engine used to win outright, even when milder, on the reasoning that its
+// decision is the considered one. In practice it is considered on less: the
+// reflex refuses an address before the detectors run, so every request after
+// the one that armed it is invisible to the engine. A path-traversal probe
+// armed a five-minute block, the engine saw that single request, found it below
+// the two-observation minimum for a block, wrote a throttle -- and the throttle
+// replaced the block, letting the attacker straight back in about a cycle
+// later. A milder opinion formed without the evidence cannot lift a block.
 //
-// So once the agent has decided something about an address, that decision
-// wins, including when it is *less* severe. An agent that has looked at the
-// evidence and chosen to throttle rather than block is not to be overruled by
-// a reflex that fired before anyone had thought about it -- and this is also
-// how a human override reaches an address the gateway blocked by itself.
+// A person's instruction is the exception and still wins whatever it says: a
+// human override is how an address the gateway blocked by itself is released.
 type Chain []Lookuper
 
 func (c Chain) Lookup(ip string) (Decision, bool) {
-	for _, source := range c {
-		if source == nil {
-			continue
-		}
-		if decision, found := source.Lookup(ip); found {
-			return decision, true
-		}
-	}
-	return Decision{}, false
+	return c.pick(func(source Lookuper) (Decision, bool) { return source.Lookup(ip) })
 }
 
 // A route-scoped policy must not hide another source's decision on a different
 // endpoint. Resolve the scope while choosing the winning source.
 func (c Chain) LookupRequest(ip, route, method string) (Decision, bool) {
+	return c.pick(func(source Lookuper) (Decision, bool) {
+		if scoped, ok := source.(interface {
+			LookupRequest(string, string, string) (Decision, bool)
+		}); ok {
+			return scoped.LookupRequest(ip, route, method)
+		}
+		d, found := source.Lookup(ip)
+		return d, found && matches(d, route, method)
+	})
+}
+
+func (c Chain) pick(find func(Lookuper) (Decision, bool)) (Decision, bool) {
+	var chosen Decision
+	found := false
 	for _, source := range c {
 		if source == nil {
 			continue
 		}
-		if scoped, ok := source.(interface {
-			LookupRequest(string, string, string) (Decision, bool)
-		}); ok {
-			if d, found := scoped.LookupRequest(ip, route, method); found {
-				return d, true
-			}
+		d, ok := find(source)
+		if !ok {
 			continue
 		}
-		if d, found := source.Lookup(ip); found && matches(d, route, method) {
+		if decisionPriority(d) == humanPriority {
 			return d, true
 		}
+		if !found || severity(d.Action) > severity(chosen.Action) {
+			chosen, found = d, true
+		}
 	}
-	return Decision{}, false
+	return chosen, found
+}
+
+// severity orders actions by how much they restrict. Unknown labels rank
+// lowest, so an unrecognised action can never outrank a real block.
+func severity(action string) int {
+	switch action {
+	case ActionThrottle:
+		return 1
+	case ActionBlock, ActionTempBlock, ActionTemporaryBlock:
+		return 2
+	case ActionEscalate:
+		return 3
+	}
+	return 0
 }
 
 func matches(d Decision, route, method string) bool {
