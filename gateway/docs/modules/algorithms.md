@@ -38,11 +38,16 @@ from becoming unbounded memory.
 
 ## Pseudocode
 
-The pseudocode below mirrors the same 17 algorithms above. It is simplified
-for understanding; configuration supplies values such as windows, thresholds,
-limits, and action ceilings.
+The pseudocode below uses the same format as the algorithm reference: source
+file(s), a short purpose, then pseudocode. It is simplified for understanding;
+configuration supplies values such as windows, thresholds, limits, and action
+ceilings.
 
 ### 1. Trusted client-IP resolution
+
+**File:** `gateway/internal/netutil/ip.go`<br>
+**Purpose:** Attribute every request to one safe client IP.<br>
+**Pseudocode:**
 
 ```text
 peer = IP address of the direct TCP connection
@@ -59,6 +64,10 @@ RETURN peer
 
 ### 2. Sliding-window flood counting
 
+**File:** `gateway/internal/signals/api_flooding.go`<br>
+**Purpose:** Detect too many requests from one IP in a rolling window.<br>
+**Pseudocode:**
+
 ```text
 FOR each request from client_ip:
     remove timestamps older than flood_window
@@ -72,6 +81,10 @@ IF count is greater than threshold:
 ```
 
 ### 3. SQL-injection signature matching
+
+**File:** `gateway/internal/signals/sqli_injection.go`<br>
+**Purpose:** Detect configured SQL-injection patterns without rejecting the current request.<br>
+**Pseudocode:**
 
 ```text
 input = capped request path, query, and body content
@@ -87,6 +100,10 @@ forward the request
 
 ### 4. Traversal and forced-browsing matching
 
+**File:** `gateway/internal/signals/enumeration_path_traversal.go`<br>
+**Purpose:** Detect traversal encodings and sensitive-path probes.<br>
+**Pseudocode:**
+
 ```text
 input = request path and relevant capped request content
 
@@ -99,6 +116,10 @@ forward the request
 ```
 
 ### 5. Consecutive brute-force streaks
+
+**File:** `gateway/internal/signals/brute_force.go`<br>
+**Purpose:** Detect repeated configured invalid-login outcomes for one client and target.<br>
+**Pseudocode:**
 
 ```text
 IF request does not match a configured login route:
@@ -120,6 +141,10 @@ IF streak failures reach the threshold:
 
 ### 6. Distinct unknown-route scanning
 
+**File:** `gateway/internal/signals/unknown_route_scanning.go`<br>
+**Purpose:** Detect reconnaissance across many unconfigured paths.<br>
+**Pseudocode:**
+
 ```text
 route = match request method and path against configured route templates
 
@@ -135,6 +160,10 @@ IF number of distinct paths reaches the threshold:
 ```
 
 ### 7. Object-ID enumeration
+
+**File:** `gateway/internal/signals/object_enumeration.go`<br>
+**Purpose:** Detect BOLA/IDOR-style walking through many object identifiers.<br>
+**Pseudocode:**
 
 ```text
 template, identifiers = match request against watched object routes
@@ -155,6 +184,10 @@ IF distinct IDs reached the threshold:
 ```
 
 ### 8. Response ownership verification
+
+**File:** `gateway/internal/ownership/guard.go`<br>
+**Purpose:** Prevent protected JSON responses from exposing another user's data.<br>
+**Pseudocode:**
 
 ```text
 IF request route has no ownership rule:
@@ -183,6 +216,10 @@ release verified response
 
 ### 9. Reputation cooldown
 
+**File:** `gateway/internal/signals/ip_reputation.go`<br>
+**Purpose:** Add known-bad address context without repeatedly flooding telemetry.<br>
+**Pseudocode:**
+
 ```text
 IF client_ip is not in the reputation feed:
     return no evidence
@@ -198,6 +235,10 @@ emit reputation evidence for this request
 
 ### 10. Trusted completed traffic windows
 
+**File:** `decision-engine/iasg/adaptive/windows.py`<br>
+**Purpose:** Produce only complete, healthy traffic windows for adaptive learning.<br>
+**Pseudocode:**
+
 ```text
 read new arrival records and completion records
 group records by their one-minute time window and endpoint
@@ -212,6 +253,10 @@ return completed endpoint windows
 ```
 
 ### 11. Rolling median and MAD baseline
+
+**File:** `decision-engine/iasg/adaptive/baseline.py`<br>
+**Purpose:** Learn each endpoint's normal request rate and stable threshold.<br>
+**Pseudocode:**
 
 ```text
 FOR each trusted endpoint window:
@@ -231,6 +276,10 @@ deviation = max(0, (observed_rate - threshold) / threshold)
 
 ### 12. Union-find campaign clustering
 
+**Files:** `decision-engine/iasg/correlation/features.py`, `cluster.py`<br>
+**Purpose:** Group related IPs into campaigns using shared traits and timing.<br>
+**Pseudocode:**
+
 ```text
 build one profile per IP from its evidence
 create one union-find group per IP
@@ -248,6 +297,10 @@ FOR each union-find group:
 
 ### 13. Campaign confidence and classification
 
+**File:** `decision-engine/iasg/correlation/agent.py`<br>
+**Purpose:** Explain the confidence, type, stages, and severity of each campaign.<br>
+**Pseudocode:**
+
 ```text
 FOR each candidate campaign:
     calculate confidence from shared traits, timing, evidence volume, and severity
@@ -263,6 +316,10 @@ FOR each candidate campaign:
 ```
 
 ### 14. Campaign continuation matching
+
+**File:** `decision-engine/iasg/campaigns/repository.py`<br>
+**Purpose:** Continue the same incident across cycles and cautious IP rotation.<br>
+**Pseudocode:**
 
 ```text
 FOR each fresh campaign:
@@ -281,6 +338,10 @@ FOR saved campaigns not seen this cycle:
 ```
 
 ### 15. Weighted risk scoring with guardrails
+
+**File:** `decision-engine/iasg/adaptive/risk.py`<br>
+**Purpose:** Select a safe recommendation from evidence, baseline deviation, and campaign facts.<br>
+**Pseudocode:**
 
 ```text
 deterministic_score = strongest non-reputation signal
@@ -303,6 +364,10 @@ return guarded action, risk score, confidence, and throttle rate
 
 ### 16. Policy safety simulation
 
+**File:** `decision-engine/iasg/policy/simulation.py`<br>
+**Purpose:** Check collateral risk before a policy is written.<br>
+**Pseudocode:**
+
 ```text
 FOR each proposed decision:
     IF IP is declared allowlisted:
@@ -321,6 +386,10 @@ FOR each proposed decision:
 ```
 
 ### 17. Bounded operator-feedback adjustment
+
+**File:** `decision-engine/iasg/feedback/memory.py`<br>
+**Purpose:** Apply repeated human corrections without bypassing safety rules.<br>
+**Pseudocode:**
 
 ```text
 WHEN an operator overrides an agent recommendation:
