@@ -77,6 +77,10 @@ CREATE TABLE IF NOT EXISTS adaptive_settings (
     version       INTEGER     NOT NULL,
     mode          TEXT        NOT NULL CHECK (mode IN ('monitor', 'manual', 'automatic')),
     config        JSONB       NOT NULL,
+    -- `config` is the running choice. Keeping the boot value separately
+    -- makes a console override reversible without guessing at an old default.
+    source        TEXT        NOT NULL DEFAULT 'file' CHECK (source IN ('file', 'console')),
+    file_config   JSONB       NOT NULL,
     updated_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_by    TEXT        NOT NULL DEFAULT 'bootstrap'
 );
@@ -129,6 +133,20 @@ CREATE TABLE IF NOT EXISTS policy_audit (
 CREATE INDEX IF NOT EXISTS policy_audit_created_idx ON policy_audit (created_at DESC);
 """
 
+# CREATE TABLE IF NOT EXISTS deliberately leaves existing tables alone. These
+# statements bring pre-existing demo volumes forward while treating their
+# durable value as a console override: losing a previously selected policy is
+# worse than requiring one explicit Revert to adopt the current file default.
+ADAPTIVE_SETTINGS_MIGRATION = """
+ALTER TABLE adaptive_settings ADD COLUMN IF NOT EXISTS source TEXT;
+ALTER TABLE adaptive_settings ADD COLUMN IF NOT EXISTS file_config JSONB;
+UPDATE adaptive_settings
+SET source = COALESCE(source, 'console'), file_config = COALESCE(file_config, config);
+ALTER TABLE adaptive_settings ALTER COLUMN source SET DEFAULT 'file';
+ALTER TABLE adaptive_settings ALTER COLUMN source SET NOT NULL;
+ALTER TABLE adaptive_settings ALTER COLUMN file_config SET NOT NULL;
+"""
+
 # Column order shared by the reader and both writers, so they cannot drift.
 COLUMNS = (
     "campaign_id", "type", "confidence", "severity", "status", "ips", "stages",
@@ -156,6 +174,7 @@ class Database:
         self._conn = psycopg.connect(dsn, autocommit=True, connect_timeout=5)
         with self._conn.cursor() as cur:
             cur.execute(SCHEMA)
+            cur.execute(ADAPTIVE_SETTINGS_MIGRATION)
             # Start the counter above whatever is already stored, so ids stay
             # unique across restarts and across a move from the Redis counter.
             cur.execute(
@@ -258,11 +277,35 @@ class PostgresAdaptive:
         self._conn = conn
 
     def ensure_config(self, default: AdaptiveConfig) -> None:
+        file_config = json.dumps(default.to_dict())
         with self._conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO adaptive_settings (singleton_id, version, mode, config)"
-                " VALUES (1, %s, %s, %s::jsonb) ON CONFLICT (singleton_id) DO NOTHING",
-                (default.version, default.mode, json.dumps(default.to_dict())),
+                "INSERT INTO adaptive_settings"
+                " (singleton_id, version, mode, config, source, file_config)"
+                " VALUES (1, %s, %s, %s::jsonb, 'file', %s::jsonb)"
+                " ON CONFLICT (singleton_id) DO UPDATE SET"
+                " file_config=EXCLUDED.file_config,"
+                " config=CASE WHEN adaptive_settings.source='file'"
+                " AND (adaptive_settings.config - 'version')"
+                " IS DISTINCT FROM (EXCLUDED.file_config - 'version')"
+                " THEN EXCLUDED.file_config ELSE adaptive_settings.config END,"
+                " mode=CASE WHEN adaptive_settings.source='file'"
+                " AND (adaptive_settings.config - 'version')"
+                " IS DISTINCT FROM (EXCLUDED.file_config - 'version')"
+                " THEN EXCLUDED.mode ELSE adaptive_settings.mode END,"
+                " version=CASE WHEN adaptive_settings.source='file'"
+                " AND (adaptive_settings.config - 'version')"
+                " IS DISTINCT FROM (EXCLUDED.file_config - 'version')"
+                " THEN adaptive_settings.version + 1 ELSE adaptive_settings.version END,"
+                " updated_at=CASE WHEN adaptive_settings.source='file'"
+                " AND (adaptive_settings.config - 'version')"
+                " IS DISTINCT FROM (EXCLUDED.file_config - 'version')"
+                " THEN now() ELSE adaptive_settings.updated_at END,"
+                " updated_by=CASE WHEN adaptive_settings.source='file'"
+                " AND (adaptive_settings.config - 'version')"
+                " IS DISTINCT FROM (EXCLUDED.file_config - 'version')"
+                " THEN 'config file' ELSE adaptive_settings.updated_by END",
+                (default.version, default.mode, file_config, file_config),
             )
 
     def load_config(self, default: AdaptiveConfig) -> AdaptiveConfig:

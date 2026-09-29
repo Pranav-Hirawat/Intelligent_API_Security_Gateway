@@ -90,7 +90,7 @@ export async function readAdaptive() {
   if (!pool) return { available: false, error: "IASG_POSTGRES_URL is unset" };
   try {
     const [settings, baselines, recommendations, audit] = await Promise.all([
-      pool.query("SELECT config, updated_at, updated_by FROM adaptive_settings WHERE singleton_id=1"),
+      pool.query("SELECT config, file_config, source, updated_at, updated_by FROM adaptive_settings WHERE singleton_id=1"),
       pool.query(`SELECT method, route_template, sample_count, statistic, mad,
                          derived_threshold, observed_rate, last_update, version, ready
                     FROM endpoint_baselines ORDER BY method, route_template`),
@@ -104,6 +104,8 @@ export async function readAdaptive() {
     return {
       available: true,
       config: normalizeStoredAdaptive(settings.rows[0]?.config || null),
+      fileConfig: normalizeStoredAdaptive(settings.rows[0]?.file_config || null),
+      source: settings.rows[0]?.source === "console" ? "console" : "file",
       settingsUpdatedAt: settings.rows[0]?.updated_at || null,
       settingsUpdatedBy: settings.rows[0]?.updated_by || "",
       baselines: baselines.rows.map((row) => ({
