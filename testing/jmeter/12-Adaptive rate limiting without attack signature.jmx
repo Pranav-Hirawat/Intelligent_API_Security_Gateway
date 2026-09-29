@@ -6,7 +6,7 @@
 
 Before starting: clear old policies for 203.0.113.120; select Automatic; keep external policy enforcement and policy throttling enabled; enable &quot;ready-baseline behavioural throttles&quot; in Adaptive; and disarm the API-flood reflex or exempt this IP from it.
 
-This run learns one trusted 60-second window, makes a valid 30-request burst, waits for the control plane to create its dynamic throttle, and then consumes the policy quota until the final request returns 429 with Retry-After. Set Adaptive's Warm-up windows setting to 1 before starting. One window is for this short demonstration only.
+This run learns one trusted 60-second window, makes a valid 30-request burst, waits for the decision engine to create its dynamic throttle, and then consumes the policy quota until the final request returns 429 with Retry-After. Set Adaptive's Warm-up windows setting to 1 before starting. One window is for this short demonstration only.
 
 No invalid login, scan path, SQL-shaped value, or malicious payload occurs in this plan. Check Policy after the run for the generated rate and TTL; after that TTL expires, one normal GET /api/products should return 200 again.</stringProp>
       <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables">

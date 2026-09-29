@@ -1,14 +1,14 @@
-# Control Plane Overview
+# Decision Engine Overview
 
-The gateway sees requests; the control plane sees campaigns; the gateway never
+The gateway sees requests; the decision engine sees campaigns; the gateway never
 waits on thinking. The gateway supplies bounded evidence through Redis, while
-the control plane runs asynchronously and writes only time-limited policies.
+the decision engine runs asynchronously and writes only time-limited policies.
 
 ## Presentation flow
 
 1. Gateway detectors observe known attack shapes and publish evidence; they do
    not refuse the request they inspect.
-2. The control plane builds complete, clean one-minute traffic windows and
+2. The decision engine builds complete, clean one-minute traffic windows and
    learns a stable normal rate for every endpoint.
 3. Correlation groups coordinated IPs by shared traits and timing, then keeps
    campaigns connected when attackers return or rotate addresses.

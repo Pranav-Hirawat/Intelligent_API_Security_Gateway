@@ -53,7 +53,7 @@ export async function POST(request) {
       route_template: "",
       emergency: "true",
     });
-    return Response.json({ ok: true, policyId, applied: "next control-plane cycle" });
+    return Response.json({ ok: true, policyId, applied: "next decision-engine cycle" });
   } catch (err) {
     await pool.query(
       "INSERT INTO policy_audit (policy_id,event,actor,details) VALUES ($1,'emergency_failed',$2,$3::jsonb)",

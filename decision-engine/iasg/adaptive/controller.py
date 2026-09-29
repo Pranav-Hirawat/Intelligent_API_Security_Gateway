@@ -161,7 +161,7 @@ class AdaptiveController:
         configured = _configured_action(ip, guard.allowlist, guard.blocklist)
         source = "adaptive"
         mode = self.config.mode
-        issued_by = "control-plane"
+        issued_by = "decision-engine"
         if configured:
             selected = configured
             source = "human"

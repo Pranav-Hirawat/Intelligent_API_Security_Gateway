@@ -375,7 +375,7 @@ class PolicyDecision:
     """
     The Policy Agent's output for a single IP.
 
-    This is the ONLY thing in the whole control plane that can influence the
+    This is the ONLY thing in the whole decision engine that can influence the
     gateway. Everything else just produces information.
     """
     ip : str
@@ -388,7 +388,7 @@ class PolicyDecision:
     # Only meaningful for "throttle": it is what makes the rate limiting
     # adaptive rather than a fixed slowdown applied to everyone alike.
     # Zero means "no rate named", and the gateway falls back to its configured
-    # throttle behaviour -- which is also what an older control plane produces,
+    # throttle behaviour -- which is also what an older decision engine produces,
     # so a policy written before this field existed still enforces.
     requests_per_minute : int = 0
     # "agent" or "human". Decides whose judgement the safety checks defer to:
@@ -404,7 +404,7 @@ class PolicyDecision:
     risk_score: float = 0.0
     explanation: dict = field(default_factory=dict)
     mode: str = "automatic"
-    issued_by: str = "control-plane"
+    issued_by: str = "decision-engine"
     baseline_version: str = ""
     config_version: int = 1
     supersedes_policy_id: str = ""
@@ -415,8 +415,8 @@ class PolicyDecision:
 
     def _canonical_dict(self) -> dict:
         """
-        The decision's fields, action spelled the way the rest of the control
-        plane and every non-Redis consumer expect -- ACTION_TEMP_BLOCK's own
+        The decision's fields, action spelled the way the rest of the decision
+        engine and every non-Redis consumer expect -- ACTION_TEMP_BLOCK's own
         value, never the Redis wire spelling.
 
         This is what a recommendation's Postgres payload is built from. A
@@ -508,7 +508,7 @@ class PolicyDecision:
             risk_score=float(value.get("risk_score") or 0),
             explanation=dict(value.get("explanation") or {}),
             mode=str(value.get("mode") or "automatic"),
-            issued_by=str(value.get("issued_by") or "control-plane"),
+            issued_by=str(value.get("issued_by") or "decision-engine"),
             baseline_version=str(value.get("baseline_version") or ""),
             config_version=int(value.get("config_version") or 1),
             supersedes_policy_id=str(value.get("supersedes_policy_id") or ""),

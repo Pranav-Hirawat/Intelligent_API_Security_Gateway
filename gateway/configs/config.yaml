@@ -168,7 +168,7 @@ enforcement:
     # noticing a flood and refusing traffic are different decisions, and only
     # the second can turn a legitimate spike into an outage.
     #
-    # This is the baseline. An address the control plane has throttled is held
+    # This is the baseline. An address the decision engine has throttled is held
     # to the rate *its* policy names instead, and the ranges in
     # `block.exempt_cidrs` below skip the limit entirely.
     enforce: false
@@ -302,8 +302,8 @@ enforcement:
     - 10.0.0.0/8
     - 192.168.0.0/16
 
-  # Acting on decisions written by the Python control plane at policy:<ip>.
-  # Off by default: turning this on is what lets the control plane refuse
+  # Acting on decisions written by the Python decision engine at policy:<ip>.
+  # Off by default: turning this on is what lets the decision engine refuse
   # live traffic, so it should be a deliberate choice.
   policy:
     enabled: true

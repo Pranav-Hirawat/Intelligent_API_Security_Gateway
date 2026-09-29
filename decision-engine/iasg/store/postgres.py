@@ -12,7 +12,7 @@ continues an investigation back into a script that starts over. That is what
 this module keeps, and the reason policy keys are deliberately NOT here.
 
 Entirely opt-in. With IASG_POSTGRES_URL unset -- or psycopg not installed, or
-the server unreachable -- the control plane behaves exactly as it did before,
+the server unreachable -- the decision engine behaves exactly as it did before,
 holding campaigns in Redis under a 24-hour TTL.
 """
 
@@ -405,7 +405,7 @@ class PostgresAdaptive:
             )
             ids = [row[0] for row in cur.fetchall()]
             for policy_id in ids:
-                _audit(cur, policy_id, "expired", "control-plane")
+                _audit(cur, policy_id, "expired", "decision-engine")
         return len(ids)
 
 

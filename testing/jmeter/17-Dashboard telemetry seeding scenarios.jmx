@@ -423,7 +423,7 @@ try { vars.put(&apos;JANE_TOKEN&apos;, new groovy.json.JsonSlurper().parseText(p
         </elementProp>
       </ThreadGroup>
       <hashTree>
-        <TestAction guiclass="TestActionGui" testclass="TestAction" testname="Wait 45 seconds for control plane" enabled="true">
+        <TestAction guiclass="TestActionGui" testclass="TestAction" testname="Wait 45 seconds for decision engine" enabled="true">
           <intProp name="ActionProcessor.action">0</intProp>
           <intProp name="ActionProcessor.target">0</intProp>
           <stringProp name="ActionProcessor.duration">${POLICY_WAIT_MS}</stringProp>

@@ -465,8 +465,8 @@ export default function AdaptivePage() {
           >
             <h2 id="save-advanced-settings-title">Save advanced settings?</h2>
             <p>
-              This updates policy guardrails, baseline learning, and risk tuning for the control
-              plane. The server will reject invalid or outdated changes.
+              This updates policy guardrails, baseline learning, and risk tuning for the decision
+              engine. The server will reject invalid or outdated changes.
             </p>
             <div className="modal-actions">
               <button type="button" className="act" disabled={Boolean(busy)} onClick={() => setConfirmAdvancedSave(false)}>
@@ -492,7 +492,7 @@ export default function AdaptivePage() {
             <p className="eyebrow">Saved</p>
             <h2 id="adaptive-settings-saved-title">Settings saved</h2>
             <p>
-              Adaptive configuration v{savedConfig.version} is now stored. The control plane uses it
+              Adaptive configuration v{savedConfig.version} is now stored. The decision engine uses it
               on its next cycle.
             </p>
             <div className="modal-actions">

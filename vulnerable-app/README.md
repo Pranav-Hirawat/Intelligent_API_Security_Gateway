@@ -45,7 +45,7 @@ curl -G 'http://localhost:8082/api/products/search' \
   --data-urlencode "q=' OR 1=1 --"
 ```
 
-The detector records SQL Injection evidence and forwards the request. Open **Dashboard → IP address → SQL injection evidence** to see the timestamp, endpoint, matched patterns, risk, request ID, HTTP result, and separate gateway decision. Detection is not a claim that the request was blocked; later control-plane policy may throttle or block it.
+The detector records SQL Injection evidence and forwards the request. Open **Dashboard → IP address → SQL injection evidence** to see the timestamp, endpoint, matched patterns, risk, request ID, HTTP result, and separate gateway decision. Detection is not a claim that the request was blocked; later decision-engine policy may throttle or block it.
 
 ## Running it
 

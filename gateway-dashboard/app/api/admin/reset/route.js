@@ -25,9 +25,9 @@ export const dynamic = "force-dynamic";
  *                   be lifting live blocks, which is a different action from
  *                   clearing history and should be a deliberate one.
  *   iasg:heartbeat  The agent's liveness. Clearing it would make a running
- *                   control plane look dead until its next cycle.
+ *                   decision engine look dead until its next cycle.
  *   consumer groups The streams are trimmed rather than deleted, so the groups
- *                   the control plane reads through survive. See REDIS_STREAMS.
+ *                   the decision engine reads through survive. See REDIS_STREAMS.
  *
  * Asks the caller to name the thing being destroyed, so a mis-click cannot do
  * it. Postgres and Redis are handled independently: if only one is available,
@@ -41,14 +41,14 @@ const TABLES = [
   "campaigns", "feedback",
 ];
 
-// Streams the control plane holds consumer groups on. These are TRIMMED, never
+// Streams the decision engine holds consumer groups on. These are TRIMMED, never
 // deleted: deleting a stream key deletes its consumer groups with it, and the
 // agent creates those groups once at startup, not per cycle. A reset that
 // deleted them left every later cycle failing with
 //
 //   NOGROUP No such key 'iasg_overrides' or consumer group 'iasg-overrides'
 //
-// until the control plane was restarted by hand. Trimming to zero empties the
+// until the decision engine was restarted by hand. Trimming to zero empties the
 // stream and leaves the group in place, which is what a reset actually wants.
 const REDIS_STREAMS = [
   "iasg:events", // group iasg-agent, read by the evidence consumer
@@ -62,11 +62,11 @@ const REDIS_STREAMS = [
 const REDIS_KEYS = ["iasg:stats", "iasg:attackers"];
 
 // Set before the streams are trimmed below, for the same reason
-// clear-campaigns sets it first: a control-plane cycle already mid-flight
+// clear-campaigns sets it first: a decision-engine cycle already mid-flight
 // when this runs could still write a campaign from evidence it read a
 // moment ago. Trimming iasg:events already removes that evidence for future
 // cycles, but the watermark closes the same narrow window belt-and-suspenders
-// -- see control-plane's EvidenceConsumer, which refuses to correlate
+// -- see decision-engine's EvidenceConsumer, which refuses to correlate
 // anything with a stream id older than this.
 const RESET_WATERMARK_KEY = process.env.IASG_RESET_WATERMARK_KEY || "iasg:reset_at";
 

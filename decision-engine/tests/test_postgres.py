@@ -277,7 +277,7 @@ def test_policy_lifecycle_and_audit_are_durable(db):
     db.adaptive.save_recommendation(
         Recommendation(decision, STATUS_APPROVED, now, now)
     )
-    db.adaptive.mark_status(decision.policy_id, "active", "control-plane")
+    db.adaptive.mark_status(decision.policy_id, "active", "decision-engine")
 
     assert db.adaptive.approved_recommendations() == []
     with db._conn.cursor() as cur:
@@ -290,7 +290,7 @@ def test_policy_lifecycle_and_audit_are_durable(db):
             "SELECT event,actor FROM policy_audit WHERE policy_id=%s ORDER BY audit_id",
             (decision.policy_id,),
         )
-        assert cur.fetchall() == [("approved", "analyst"), ("active", "control-plane")]
+        assert cur.fetchall() == [("approved", "analyst"), ("active", "decision-engine")]
 
 
 def test_stored_recommendation_payload_keeps_the_canonical_action(db):
@@ -305,7 +305,7 @@ def test_stored_recommendation_payload_keeps_the_canonical_action(db):
     decision = PolicyDecision(
         ip="203.0.113.9", action=ACTION_TEMP_BLOCK, campaign_id="c2",
         confidence=0.9, ttl_seconds=900, source="adaptive",
-        issued_by="control-plane", issued_at=now,
+        issued_by="decision-engine", issued_at=now,
     )
     db.adaptive.save_recommendation(
         Recommendation(decision, STATUS_APPROVED, now, now)

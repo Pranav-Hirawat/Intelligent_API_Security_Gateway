@@ -70,7 +70,7 @@ export default function IpPage({ params }) {
     <>
       <PageHead title={ip}>
         {data?.private
-          ? "A private or container address — the control plane will never write policy for it."
+          ? "A private or container address — the decision engine will never write policy for it."
           : `${data?.location?.city || "Unknown location"}${
               data?.location?.country ? `, ${data.location.country}` : ""
             }`}
@@ -208,7 +208,7 @@ export default function IpPage({ params }) {
             </div>
             {data?.private ? (
               <p className="empty">
-                Private addresses are never actioned — the control plane refuses them, so an
+                Private addresses are never actioned — the decision engine refuses them, so an
                 instruction here would be discarded.
               </p>
             ) : (

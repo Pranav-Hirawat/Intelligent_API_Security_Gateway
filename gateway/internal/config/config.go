@@ -217,7 +217,7 @@ type EnforcementConfig struct {
 }
 
 // AdaptiveRateLimitConfig is fixed at boot so replicas use the same quota
-// contract. Policy rates still change dynamically with the control plane.
+// contract. Policy rates still change dynamically with the decision engine.
 type AdaptiveRateLimitConfig struct {
 	FallbackRequestsPerMinute int           `yaml:"fallback_requests_per_minute"`
 	Burst                     int           `yaml:"burst"`
@@ -240,8 +240,8 @@ func (c AdaptiveRateLimitConfig) WithDefaults() AdaptiveRateLimitConfig {
 }
 
 // PolicyConfig controls whether the gateway acts on decisions written by the
-// Python control plane. Disabled by default: enabling it is what turns the
-// control plane from an observer into something that can refuse traffic.
+// Python decision engine. Disabled by default: enabling it is what turns the
+// decision engine from an observer into something that can refuse traffic.
 type PolicyConfig struct {
 	Enabled         bool          `yaml:"enabled"`
 	KeyPrefix       string        `yaml:"key_prefix"`
@@ -353,7 +353,7 @@ type ThrottleConfig struct {
 }
 
 // BlockConfig controls the gateway's own blocking -- its reflex, as opposed to
-// the considered decisions the control plane writes as policy keys.
+// the considered decisions the decision engine writes as policy keys.
 //
 // Enabled on its own does nothing: Signals has to name at least one detector
 // that may act. That is deliberate. This block existed in the config long

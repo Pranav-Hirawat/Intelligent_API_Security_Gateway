@@ -3,8 +3,8 @@
 ## Overview
 
 The gateway is a Go HTTP server wrapped around `httputil.ReverseProxy`, with a
-middleware chain in front of it. Alongside it run a Python control
-plane, a Next.js dashboard, Redis, and Postgres.
+middleware chain in front of it. Alongside it run a Python decision
+engine, a Next.js dashboard, Redis, and Postgres.
 
 ## Startup
 
@@ -66,7 +66,7 @@ flowchart TD
         PG[(Postgres)]
     end
 
-    subgraph ControlPlane["Control plane -- every 30s"]
+    subgraph DecisionEngine["Decision engine -- every 30s"]
         Runner[Runner cycle]
         Windows[Completed 60-second windows]
         Baselines[Endpoint median/MAD baselines]
@@ -110,7 +110,7 @@ action mapping, policy schema, expiry details, and configuration.
 
 | Component | Location | Notes |
 | --- | --- | --- |
-| Control plane | `control-plane/` | Python agent, `python -m iasg`. See [Control Plane](control-plane.md) |
+| Decision engine | `decision-engine/` | Python agent, `python -m iasg`. See [Decision Engine](decision-engine.md) |
 | Dashboard | `gateway-dashboard/` | Next.js 15, port 5177. See [Command Center Dashboard](modules/dashboard.md) |
 | Vulnerable app | `vulnerable-app/` | Deliberately weak API used as the protected backend |
 | Compose stack | `infra/docker-compose.yml` | See [Running with Docker](running-with-docker.md) |

@@ -106,7 +106,7 @@ This reads the URL path, decoded query values, and JSON/body content for known S
 - `UNION SELECT`
 - ` OR 1=1`
 
-The comment marker `--` by itself is retained as low-confidence context but does not fire the detector. A stronger signature emits standardized evidence, logs a formatted alert, and still allows the request through. The dashboard and control plane distinguish this detection from any later policy enforcement.
+The comment marker `--` by itself is retained as low-confidence context but does not fire the detector. A stronger signature emits standardized evidence, logs a formatted alert, and still allows the request through. The dashboard and decision engine distinguish this detection from any later policy enforcement.
 
 ### Brute Force Detection
 
@@ -125,7 +125,7 @@ hardcoded implementation -- a doc or comment that still lists `/api/login` and
 The detector tracks per-`(ip, route, target)` streaks and reports the single
 strongest one via `Metrics(ip)`, which the collector and the reflex read. It
 does not classify "classic brute force" versus "password spraying" -- that
-distinction exists only as a control-plane campaign classification, derived
+distinction exists only as a decision-engine campaign classification, derived
 from repeated brute-force evidence, never as its own gateway signal. It also
 does not log: unlike the other detectors here, a firing streak produces
 `Evidence` but no `SECURITY ALERT` line.
@@ -153,7 +153,7 @@ Config comes from `enforcement.unknown_route_scanning` (`enabled`,
 Both this signal and brute force above are **advisory-only**: naming either one
 in `block.signals` makes the gateway refuse to start with an explicit error
 (`internal/enforcement/reflex.go`) rather than silently do nothing. They can
-still become an expiring throttle or block, but only after control-plane
+still become an expiring throttle or block, but only after decision-engine
 correlation and the policy writer's safety checks -- see
 [Detection Signals](detection-signals.md).
 
@@ -179,7 +179,7 @@ address that has not yet tripped anything.
 
 It fires on a **cooldown**, because a listed address is listed on every request
 it makes. Firing each time would write one `Evidence` per request, swamping the
-control plane's detector counts and the event stream both. Inside the cooldown
+decision engine's detector counts and the event stream both. Inside the cooldown
 the address still contributes its score; it simply does not fire again.
 
 Config comes from `enforcement.ip_reputation` (`enabled`, `feed_path`,
@@ -274,8 +274,8 @@ The gateway now does exactly this at runtime:
 9. Enqueue the telemetry record for background publication to `iasg:events`.
 
 So it detects *and* enforces, but only ever on a decision made earlier — by the
-control plane, or by the reflex on a previous request. Nothing in the request
-path calls the control plane, PostgreSQL, or a model. Only applicable quotas
+decision engine, or by the reflex on a previous request. Nothing in the request
+path calls the decision engine, PostgreSQL, or a model. Only applicable quotas
 perform synchronous Redis I/O, with a short configurable timeout and fail-open
 behaviour. Throttling never sleeps or queues requests. See
 [Policy enforcement](policy-enforcement.md) for the JSON contract, configuration,

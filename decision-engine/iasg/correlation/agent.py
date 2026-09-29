@@ -33,7 +33,7 @@ from iasg.models import (
 MIN_SOLO_EVENTS = 3
 
 # The consumer hands correlation only the evidence newly received in one
-# control-plane cycle. A signature-confirmed injection or traversal probe must
+# decision-engine cycle. A signature-confirmed injection or traversal probe must
 # not vanish merely because a gateway reflex stops the next request before it
 # can add a third event. Other single-IP detectors still need volume before
 # they are called campaigns; these exceptions apply only when the gateway

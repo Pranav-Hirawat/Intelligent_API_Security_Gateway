@@ -1,8 +1,8 @@
-# Control Plane
+# Decision Engine
 
 ## Overview
 
-The control plane is a Python agent in `control-plane/`. It runs on a timer,
+The decision engine is a Python agent in `decision-engine/`. It runs on a timer,
 entirely off the request path, and is the only component that reasons about
 attacks rather than merely recognising them.
 
@@ -115,7 +115,7 @@ survive a restart, and the agent restores them into Redis on startup:
 ```
 [postgres] campaigns and feedback are durable
 [postgres] restored 1 records into Redis
-[iasg] control plane started (every 30s, dry_run=False)
+[iasg] decision engine started (every 30s, dry_run=False)
 ```
 
 ## Configuration
@@ -171,12 +171,12 @@ agent from a stopped one.
 !!! note "Logs under Docker"
     Python block-buffers stdout when it is not a TTY, which makes a working
     agent look hung. `infra/docker-compose.yml` sets `PYTHONUNBUFFERED=1` on
-    the `control_plane` service for exactly this reason.
+    the `decision_engine` service for exactly this reason.
 
 ## Tests
 
 ```bash
-cd control-plane && python -m pytest
+cd decision-engine && python -m pytest
 ```
 
 The suite covers correlation, campaign rotation, multi-stage attacks, the

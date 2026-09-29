@@ -35,9 +35,9 @@ Before every mode run: clear campaigns, delete any live policy for these IPs, th
             <stringProp name="Argument.value">${__P(REPEAT_REQUESTS,6)}</stringProp>
             <stringProp name="Argument.metadata">=</stringProp>
           </elementProp>
-          <elementProp name="CONTROL_PLANE_WAIT_MS" elementType="Argument">
-            <stringProp name="Argument.name">CONTROL_PLANE_WAIT_MS</stringProp>
-            <stringProp name="Argument.value">${__P(CONTROL_PLANE_WAIT_MS,45000)}</stringProp>
+          <elementProp name="DECISION_ENGINE_WAIT_MS" elementType="Argument">
+            <stringProp name="Argument.name">DECISION_ENGINE_WAIT_MS</stringProp>
+            <stringProp name="Argument.value">${__P(DECISION_ENGINE_WAIT_MS,45000)}</stringProp>
             <stringProp name="Argument.metadata">=</stringProp>
           </elementProp>
           <elementProp name="MANUAL_APPROVAL_WAIT_MS" elementType="Argument">
@@ -154,7 +154,7 @@ Before every mode run: clear campaigns, delete any live policy for these IPs, th
         <TestAction guiclass="TestActionGui" testclass="TestAction" testname="Wait for campaign and agent result" enabled="true">
           <intProp name="ActionProcessor.action">1</intProp>
           <intProp name="ActionProcessor.target">0</intProp>
-          <stringProp name="ActionProcessor.duration">${CONTROL_PLANE_WAIT_MS}</stringProp>
+          <stringProp name="ActionProcessor.duration">${DECISION_ENGINE_WAIT_MS}</stringProp>
         </TestAction>
         <hashTree/>
         <TestAction guiclass="TestActionGui" testclass="TestAction" testname="Manual-mode analyst approval window" enabled="true">

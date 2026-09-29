@@ -60,7 +60,7 @@ func (s *lastEvidenceStore) Metrics(ip string) Evidence {
 // which leaves the previous request's evidence in place. Matching on the
 // request id makes that case report nothing, rather than replaying an attack
 // from up to lastEvidenceTTL ago onto a request that was never inspected --
-// evidence the control plane would otherwise ingest as a fresh hit.
+// evidence the decision engine would otherwise ingest as a fresh hit.
 func (s *lastEvidenceStore) MetricsFor(ip, requestID string) Evidence {
 	if s == nil {
 		return Evidence{}

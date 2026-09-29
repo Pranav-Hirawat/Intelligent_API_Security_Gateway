@@ -147,7 +147,7 @@ func (rc *Recorder) Middleware(next http.Handler) http.Handler {
 			// Scoped to this request, not to the address. A blocked IP is
 			// answered by the enforcer before the detectors run, so an
 			// address-wide snapshot would report the attack that got it
-			// blocked on every later request -- evidence the control plane
+			// blocked on every later request -- evidence the decision engine
 			// ingests as a fresh hit, keeping a campaign alive on traffic
 			// nobody inspected.
 			snap := rc.Collector.SnapshotFor(ip, requestID)

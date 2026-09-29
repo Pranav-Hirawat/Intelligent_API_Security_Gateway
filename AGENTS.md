@@ -8,7 +8,7 @@ An API security gateway in two lanes, and the split is the whole design:
 
 - **`gateway/`** — Go reverse proxy on `:8082`, in the path of every request.
   Detects, enforces a decision it *already has*, forwards. Budget: microseconds.
-- **`control-plane/`** — Python agent, off the request path, every 30 seconds.
+- **`decision-engine/`** — Python agent, off the request path, every 30 seconds.
   Reads evidence, correlates it into campaigns, decides, writes `policy:<ip>`
   keys back to Redis.
 - **`gateway-dashboard/`** — Next.js console on `:5177`.
@@ -16,7 +16,7 @@ An API security gateway in two lanes, and the split is the whole design:
 - **`infra/docker-compose.yml`** — runs all of it. Docs site on `:8000`.
 
 The one sentence to preserve: **the gateway never waits on thinking.** No change
-should put Redis, the control plane, or a model on the synchronous request path.
+should put Redis, the decision engine, or a model on the synchronous request path.
 
 ## Commands
 
@@ -29,8 +29,8 @@ cd gateway && go build ./... && go vet ./... && go test ./...
 cd gateway && go test ./internal/signals/ -race      # detectors hold live state
 
 # Python — the venv already exists; PYTHONPATH is required
-cd control-plane && PYTHONPATH=. .venv/bin/python -m pytest -q
-cd control-plane && PYTHONPATH=. .venv/bin/python -m iasg --once
+cd decision-engine && PYTHONPATH=. .venv/bin/python -m pytest -q
+cd decision-engine && PYTHONPATH=. .venv/bin/python -m iasg --once
 
 ```
 
@@ -42,7 +42,7 @@ configured — run `gofmt -l` on anything you touch.
 Breaking any of these breaks the architecture, not just a test.
 
 1. **Detectors never refuse a request.** They fill in `Evidence` and allow. Only
-   `internal/policy` (control-plane decisions) and `internal/enforcement` (the
+   `internal/policy` (decision-engine decisions) and `internal/enforcement` (the
    gateway's own reflex) may refuse, and both act on decisions made *earlier*.
 2. **Nothing on the request path blocks on I/O it can avoid.** Policy is read
    from a background-refreshed snapshot. A dead Redis means "no policy", never
@@ -115,7 +115,7 @@ the middle one and the detector reads a zero config, switches itself off, and
 *nothing fails*. `internal/proxy/enforcement_config_test.go` guards this by
 reflection; if it fails, that is what it is telling you.
 
-**`DEL` on a Redis stream deletes its consumer groups.** The control plane
+**`DEL` on a Redis stream deletes its consumer groups.** The decision engine
 creates groups once at startup, so a reset that deletes `iasg:events` leaves
 every later cycle failing `NOGROUP` until a restart. Use `XTRIM MAXLEN 0`, as
 `app/api/admin/reset/route.js` does. That endpoint also deliberately spares

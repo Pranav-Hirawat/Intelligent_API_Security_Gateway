@@ -1,7 +1,7 @@
 [project]
-name = "iasg-control-plane"
+name = "iasg-decision-engine"
 version = "0.1.0"
-description = "Agentic security control plane for the Intelligent API Security Gateway"
+description = "Agentic security decision engine for the Intelligent API Security Gateway"
 requires-python = ">=3.11"
 
 # The ONLY runtime dependency. Everything else is Python's standard library.
@@ -22,7 +22,7 @@ include = ["iasg*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-# Keep both the control-plane package and repository root importable to tests
+# Keep both the decision-engine package and repository root importable to tests
 # without relying on editable-install path handling.
 pythonpath = [".", ".."]
 

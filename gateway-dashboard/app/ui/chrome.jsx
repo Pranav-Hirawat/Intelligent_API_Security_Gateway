@@ -405,7 +405,7 @@ export function ResetControl({ className = "icon-btn", label = "Reset console" }
  * (campaigns + the feedback learned from them), never raw events and never
  * active policy. See app/api/admin/clear-campaigns for exactly what is and is
  * not touched, and why clearing here can't be undone by whatever evidence the
- * control plane was mid-cycle on when this runs.
+ * decision engine was mid-cycle on when this runs.
  */
 export function ClearCampaignsControl({ className = "icon-btn", label = "Clear campaigns" }) {
   return (
@@ -424,7 +424,7 @@ export function ClearCampaignsControl({ className = "icon-btn", label = "Clear c
         <>
           <p>
             Deletes every campaign and the feedback learned from them, in Postgres
-            and Redis. Campaigns rebuild from new evidence as the control plane
+            and Redis. Campaigns rebuild from new evidence as the decision engine
             keeps running.
           </p>
           <p className="modal-note">

@@ -25,7 +25,7 @@ export async function PUT(request) {
     const current = await client.query(
       "SELECT version FROM adaptive_settings WHERE singleton_id=1 FOR UPDATE",
     );
-    if (!current.rowCount) throw new ApiError(409, "run the control plane migration first");
+    if (!current.rowCount) throw new ApiError(409, "run the decision engine migration first");
     if (Number(config.version) !== Number(current.rows[0].version)) {
       throw new ApiError(409, "settings changed since this page loaded; reload before saving");
     }

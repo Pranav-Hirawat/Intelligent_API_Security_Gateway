@@ -42,7 +42,7 @@ export function LiveProvider({ children, me }) {
   const [paused, setPaused] = useState(false);
   const [busy, setBusy] = useState("");
   // A queued override has been accepted by the console but has not yet been
-  // reflected by the control plane. It must not be mistaken for current state.
+  // reflected by the decision engine. It must not be mistaken for current state.
   const [pendingPolicyActions, setPendingPolicyActions] = useState({});
   const [toast, setToast] = useState(null);
   const [updatedAt, setUpdatedAt] = useState(null);
@@ -196,7 +196,7 @@ export function LiveProvider({ children, me }) {
         return false;
       }
 
-      // The next action must be based on the state the control plane applied,
+      // The next action must be based on the state the decision engine applied,
       // not the policy row rendered before this request was queued.
       setPendingPolicyActions((pending) => ({
         ...pending,

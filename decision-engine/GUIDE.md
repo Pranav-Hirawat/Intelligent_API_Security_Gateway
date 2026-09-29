@@ -1,6 +1,6 @@
-# Control Plane — file by file
+# Decision Engine — file by file
 
-This page originally walked through the control plane as it stood on the
+This page originally walked through the decision engine as it stood on the
 `pranav/agentic-evidence-pipeline` branch, before gateway enforcement,
 `iasg/adaptive/` and `iasg/policy/simulation.py`
 path existed. That snapshot is no longer a safe way to learn the current

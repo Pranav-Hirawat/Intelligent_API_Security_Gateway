@@ -16,7 +16,7 @@ from iasg.runner import Runner, report
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(prog="iasg", description="IASG control plane")
+    parser = argparse.ArgumentParser(prog="iasg", description="IASG decision engine")
     parser.add_argument("--once", action="store_true", help="run one cycle and exit")
     parser.add_argument("--dry-run", action="store_true", help="write no policy keys")
     parser.add_argument("--interval", type=int, help="seconds between cycles")

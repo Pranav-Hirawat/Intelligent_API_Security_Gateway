@@ -55,7 +55,7 @@ export default function CampaignsPage() {
   return (
     <div ref={snapRef} className="page-body">
       <PageHead title="Campaigns">
-        What the control plane correlated out of the raw events — rebuilt every cycle,
+        What the decision engine correlated out of the raw events — rebuilt every cycle,
         and the only place an address becomes an attacker rather than a row in a log.
       </PageHead>
 

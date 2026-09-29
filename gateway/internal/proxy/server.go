@@ -69,7 +69,7 @@ type Config struct {
 	// under running traffic is a deployment, not a settings change.
 	Identity config.IdentityConfig
 
-	// Redis holds hot telemetry and the policy snapshot the control plane writes.
+	// Redis holds hot telemetry and the policy snapshot the decision engine writes.
 	Redis config.RedisConfig
 
 	// TrustedProxies lists CIDRs whose X-Forwarded-For header is believed.
@@ -190,7 +190,7 @@ func (s *Server) handler(cleanup *cleanups) (http.Handler, error) {
 	collector := detectors.collector()
 
 	// The gateway's own reflex, and the enforcer that acts on both it and the
-	// control plane's decisions.
+	// decision engine's decisions.
 	reflex, err := enforcement.New(reflexConfig(enf.Block))
 	if err != nil {
 		return nil, err
@@ -326,7 +326,7 @@ func observedDetectors(reflex *enforcement.Reflex, collector enforcement.Observe
 }
 
 // newEnforcer builds the enforcement middleware, the gate that switches the
-// control plane's decisions on and off, and the function that releases the
+// decision engine's decisions on and off, and the function that releases the
 // policy store and limiter.
 //
 // Both sources are wired in whether or not they are active at boot, because
@@ -338,7 +338,7 @@ func (s *Server) newEnforcer(reflex *enforcement.Reflex) (*policy.Enforcer, *pol
 	enf := s.config.Enforcement
 	a := enf.AdaptiveRateLimit.WithDefaults()
 
-	// The control plane first, then the gateway's own reflex. policy.Chain
+	// The decision engine first, then the gateway's own reflex. policy.Chain
 	// documents why that order and not the other one.
 	var sources policy.Chain
 	var gate *policy.Gate

@@ -15,7 +15,7 @@ services:
         echo "- Postgres (Gateway):   localhost:5434" &&
         echo "- Postgres (Vuln API):  localhost:5435" &&
         echo "- Redis:                localhost:6379" &&
-        echo "- Control plane:        python agent (no HTTP port)"
+        echo "- Decision engine:        python agent (no HTTP port)"
 
   postgres:
     image: postgres:18.2
@@ -78,12 +78,12 @@ services:
   # container, so this is several times slower than a native
   # `brew install ollama`. It exists so narration works with no host install
   # at all; run Ollama natively instead when speed matters (see the
-  # control_plane narration comment below).
+  # decision_engine narration comment below).
   ollama:
     profiles: ["llm"]
     image: ollama/ollama:0.12.3
     restart: unless-stopped
-    # Internal by default -- the control plane reaches this by service name.
+    # Internal by default -- the decision engine reaches this by service name.
     # Uncomment to call /api/generate from the host directly.
     # ports:
     #   - "11434:11434"
@@ -209,16 +209,16 @@ services:
       redis:
         condition: service_healthy
 
-  control_plane:
+  decision_engine:
     image: python:3.12-slim
     restart: unless-stopped
     working_dir: /app
     volumes:
-      - ../control-plane:/app
+      - ../decision-engine:/app
     environment:
       # Without this Python block-buffers stdout when it is not a TTY, so the
       # agent's per-cycle reasoning never reaches `docker compose logs` and the
-      # control plane looks dead even while it is writing campaigns.
+      # decision engine looks dead even while it is writing campaigns.
       PYTHONUNBUFFERED: "1"
       IASG_REDIS_URL: redis://redis:6379/0
       IASG_EVIDENCE_STREAM: iasg:events

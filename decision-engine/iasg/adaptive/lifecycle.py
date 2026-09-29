@@ -71,7 +71,7 @@ class MemoryLifecycleRepository:
         due = [row for row in self.rows.values()
                if row.status == STATUS_ACTIVE and row.decision.expires_at <= now]
         for row in due:
-            self.mark_status(row.decision.policy_id, STATUS_EXPIRED, "control-plane")
+            self.mark_status(row.decision.policy_id, STATUS_EXPIRED, "decision-engine")
         return len(due)
 
 
@@ -164,7 +164,7 @@ class Lifecycle:
     def approved(self) -> list[PolicyDecision]:
         return [row.decision for row in self.repository.approved_recommendations()]
 
-    def activated(self, decision: PolicyDecision, actor: str = "control-plane") -> None:
+    def activated(self, decision: PolicyDecision, actor: str = "decision-engine") -> None:
         if decision.supersedes_policy_id:
             self.repository.mark_status(
                 decision.supersedes_policy_id,

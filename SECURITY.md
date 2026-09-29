@@ -31,8 +31,8 @@ Anything where the gateway itself fails to do what it claims:
 - A detector that can be bypassed by a request it should catch.
 - A way past the enforcement rails — the deterministic-evidence requirement,
   the policy TTL ceiling, the allowlist, the per-cycle write cap.
-- A path where the control plane can write a policy the gateway should refuse.
-- Anything in `gateway/`, `control-plane/`, `gateway-dashboard/` or `desktop/`
+- A path where the decision engine can write a policy the gateway should refuse.
+- Anything in `gateway/`, `decision-engine/`, `gateway-dashboard/` or `desktop/`
   that leaks data or grants access beyond what the documentation describes.
 - Something in the release pipeline that would ship a compromised artifact.
 

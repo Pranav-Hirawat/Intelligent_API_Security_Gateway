@@ -5,7 +5,7 @@ import "sync/atomic"
 // Gate wraps a Lookuper with a switch.
 //
 // The chain is built once at boot, so a source cannot be added or removed
-// later. Turning the control plane's decisions on and off from the console is
+// later. Turning the decision engine's decisions on and off from the console is
 // therefore a matter of ignoring a source that is still there and still
 // refreshing, rather than tearing it down: the store keeps its snapshot warm,
 // and switching back on enforces immediately instead of after the next refresh.

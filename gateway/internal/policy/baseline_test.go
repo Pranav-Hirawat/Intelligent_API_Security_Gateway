@@ -58,7 +58,7 @@ func TestAPolicyRateOverridesTheBaseline(t *testing.T) {
 		t.Errorf("allowed %d against a policy of 2 under a baseline of 100, want 2", codes[http.StatusOK])
 	}
 
-	// Looser than the baseline. The policy still wins: the control plane looked
+	// Looser than the baseline. The policy still wins: the decision engine looked
 	// at this address and said so.
 	loose := NewEnforcer(
 		fixed{"203.0.113.12": {Action: ActionThrottle, RequestsPerMinute: 10}}, true,

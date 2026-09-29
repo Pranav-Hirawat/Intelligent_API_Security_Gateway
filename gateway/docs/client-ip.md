@@ -1,7 +1,7 @@
 # Who is the client? (and why we got it wrong)
 
 Everything the gateway does depends on knowing **which machine sent a request**.
-Detectors count per machine. The control plane groups machines into campaigns.
+Detectors count per machine. The decision engine groups machines into campaigns.
 Enforcement blocks a machine. Get that one value wrong and all three are wrong
 together.
 
@@ -47,10 +47,10 @@ grouping key.
 
 While the detectors only **logged**, this was bad data.
 
-Once the control plane could write a block, it became an outage:
+Once the decision engine could write a block, it became an outage:
 
 1. Detectors report thousands of attacks, all labelled *balancer*
-2. Control plane concludes the balancer is a serious threat
+2. Decision engine concludes the balancer is a serious threat
 3. Enforcement blocks the balancer
 4. **Every user's traffic now gets a 403** — we took ourselves offline
 
@@ -139,7 +139,7 @@ X-Forwarded-For: <victim>, <attacker's real address>
 
 There was a second, quieter consequence.
 
-The control plane refuses to block private or local addresses — sensible,
+The decision engine refuses to block private or local addresses — sensible,
 otherwise it could block your own laptop. But when testing locally, every
 request looked like `127.0.0.1`, which is exactly the kind of address it
 refuses. So **no block was ever issued from real traffic.** The two halves of
@@ -152,7 +152,7 @@ With the client IP fixed, the full loop runs:
       ↓
 detected as 6 separate addresses        (before: 1)
       ↓
-control plane groups them: "Distributed Flood", confidence 1.00
+decision engine groups them: "Distributed Flood", confidence 1.00
       ↓
 6 block decisions written
       ↓
@@ -180,4 +180,4 @@ about who the caller is.
 One known gap is deliberately left alone:
 
 - **Detectors log but never block.** That is the team's decision, not an
-  oversight. Blocking happens only through the control plane.
+  oversight. Blocking happens only through the decision engine.

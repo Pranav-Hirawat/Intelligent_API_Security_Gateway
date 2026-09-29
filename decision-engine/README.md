@@ -1,9 +1,9 @@
-# IASG Control Plane
+# IASG Decision Engine
 
 The Python half of the Intelligent API Security Gateway — Lane 2 of the proposal.
 
 The Go gateway is the **data plane**: it sees every request and decides allow/block in
-microseconds. This is the **control plane**: it never touches a live request, wakes up
+microseconds. This is the **decision engine**: it never touches a live request, wakes up
 every 30 seconds, works out which attackers are acting together, and writes policy the
 gateway enforces.
 
@@ -26,10 +26,10 @@ turns fired signals into campaign Evidence; another keeps clean traffic long
 enough to finish privacy-safe 60-second windows and endpoint baselines.
 `iasg.evidence.ingest` remains as a fallback for piping old SECURITY ALERT logs.
 
-## The four control-plane algorithms
+## The four decision-engine algorithms
 
-Gateway detectors emit input evidence, but they are not control-plane
-algorithms. The control plane runs these four deterministic algorithms:
+Gateway detectors emit input evidence, but they are not decision-engine
+algorithms. The decision engine runs these four deterministic algorithms:
 
 1. **Adaptive endpoint baseline** learns trusted normal traffic per method and route.
 2. **Campaign correlation** groups related activity across IP addresses.
@@ -201,7 +201,7 @@ rejected.
 The gateway prints its detections to stdout. Pipe them in:
 
 ```bash
-cd ../gateway && go run ./cmd/server 2>&1 | ../control-plane/.venv/bin/python -m iasg.evidence.ingest
+cd ../gateway && go run ./cmd/server 2>&1 | ../decision-engine/.venv/bin/python -m iasg.evidence.ingest
 ```
 
 Then attack `localhost:8082/api/login` and run `python -m iasg --once` in another terminal.
@@ -322,7 +322,7 @@ prompt-injected assessment can mislead a human reader; it cannot unblock an atta
 Compose and a bare `python -m iasg` both default to `null` and render templates
 offline. In Compose, start the opt-in internal Ollama service and set
 `IASG_LLM_PROVIDER=ollama` in `infra/.env`; see [`../infra/README.md`](../infra/README.md#narration).
-For a bare control-plane process, run Ollama on the host and point
+For a bare decision-engine process, run Ollama on the host and point
 `IASG_OLLAMA_URL` at it:
 
 ```bash

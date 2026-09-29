@@ -63,7 +63,7 @@ def test_unacked_entries_are_redelivered_and_acked_ones_are_not(store):
 
 
 # The dashboard's reset relies on this: trimming empties the stream but the
-# control plane's consumer group survives, so the next cycle is not NOGROUP.
+# decision engine's consumer group survives, so the next cycle is not NOGROUP.
 def test_trimming_keeps_the_consumer_group(store):
     store.ensure_group("s", "g")
     for n in range(5):

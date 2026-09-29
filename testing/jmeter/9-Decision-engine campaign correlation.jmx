@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
   <hashTree>
-    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="IASG Control Plane Campaign Correlation">
-      <stringProp name="TestPlan.comments">Step 9 - Control-plane campaign correlation.
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="IASG Decision Engine Campaign Correlation">
+      <stringProp name="TestPlan.comments">Step 9 - Decision-engine campaign correlation.
 
 Three concurrent thread groups represent three documentation IPs: 198.51.100.21, .22, and .23. Each group sends eight distinct unmatched paths to cross the unknown-route-scanning threshold, then repeats /admin six times so every source has the same dominant endpoint, User-Agent, detector, /24 subnet, and overlapping timing.
 
@@ -132,7 +132,7 @@ Expected proof after the 45-second wait: Events contain three source IPs and unk
             <hashTree/>
           </hashTree>
         </hashTree>
-        <TestAction guiclass="TestActionGui" testclass="TestAction" testname="A waits for control-plane cycle" enabled="true">
+        <TestAction guiclass="TestActionGui" testclass="TestAction" testname="A waits for decision-engine cycle" enabled="true">
           <intProp name="ActionProcessor.action">1</intProp>
           <intProp name="ActionProcessor.target">0</intProp>
           <stringProp name="ActionProcessor.duration">${POLICY_WAIT_MS}</stringProp>
@@ -231,7 +231,7 @@ Expected proof after the 45-second wait: Events contain three source IPs and unk
             <hashTree/>
           </hashTree>
         </hashTree>
-        <TestAction guiclass="TestActionGui" testclass="TestAction" testname="B waits for control-plane cycle" enabled="true">
+        <TestAction guiclass="TestActionGui" testclass="TestAction" testname="B waits for decision-engine cycle" enabled="true">
           <intProp name="ActionProcessor.action">1</intProp>
           <intProp name="ActionProcessor.target">0</intProp>
           <stringProp name="ActionProcessor.duration">${POLICY_WAIT_MS}</stringProp>
@@ -330,7 +330,7 @@ Expected proof after the 45-second wait: Events contain three source IPs and unk
             <hashTree/>
           </hashTree>
         </hashTree>
-        <TestAction guiclass="TestActionGui" testclass="TestAction" testname="C waits for control-plane cycle" enabled="true">
+        <TestAction guiclass="TestActionGui" testclass="TestAction" testname="C waits for decision-engine cycle" enabled="true">
           <intProp name="ActionProcessor.action">1</intProp>
           <intProp name="ActionProcessor.target">0</intProp>
           <stringProp name="ActionProcessor.duration">${POLICY_WAIT_MS}</stringProp>

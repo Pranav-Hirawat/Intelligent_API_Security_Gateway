@@ -5,7 +5,7 @@ protects, the console, and the two stores they share.
 
 ```bash
 docker compose -f infra/docker-compose.yml up -d
-docker compose -f infra/docker-compose.yml logs -f control_plane
+docker compose -f infra/docker-compose.yml logs -f decision_engine
 ```
 
 ## Services
@@ -13,7 +13,7 @@ docker compose -f infra/docker-compose.yml logs -f control_plane
 | Service | Port | What it is |
 |---|---|---|
 | `gateway` | 8082 | Go reverse proxy — the data plane |
-| `control_plane` | — | Python agent, no HTTP port. Correlates and decides |
+| `decision_engine` | — | Python agent, no HTTP port. Correlates and decides |
 | `vulnerable_api` | 5002 | The deliberately insecure API being protected |
 | `vulnerable_web` | 5175 | Its front end |
 | `gateway_dashboard` | 5177 | Next.js operations console |
@@ -45,7 +45,7 @@ history, feedback, adaptive settings, and database-backed dashboard state.
 
 ## Narration
 
-The control plane can write incident prose with a local LLM. It's off by default — a
+The decision engine can write incident prose with a local LLM. It's off by default — a
 plain `docker compose up` downloads and runs nothing extra. To turn it on:
 
 ```bash
@@ -54,7 +54,7 @@ docker compose -f infra/docker-compose.yml --profile llm up -d
 
 That starts `ollama` and runs `ollama_pull`, which downloads `llama3.2` (~2GB) the
 first time and is a fast no-op after. Then set `IASG_LLM_PROVIDER=ollama` in
-`infra/.env` (see [`.env.example`](.env.example)) and recreate `control_plane`.
+`infra/.env` (see [`.env.example`](.env.example)) and recreate `decision_engine`.
 
 It's CPU-only here — Docker Desktop can't pass an Apple Silicon GPU to a Linux
 container — so it's noticeably slower than a native `brew install ollama`. Either way,
@@ -77,20 +77,20 @@ VULN_POSTGRES_DB=vuln_app
 IASG_JWT_SECRET=change-me-before-anyone-else-uses-this
 ```
 
-Compose passes the security-system database credentials to `control_plane`
+Compose passes the security-system database credentials to `decision_engine`
 and `gateway_dashboard` as `IASG_POSTGRES_URL`. The vulnerable database
 values go only to `vulnerable_api`; `IASG_JWT_SECRET` is shared by that API
 and `gateway` for the ownership demonstration.
 
-The control plane's own settings are documented in
-[`../control-plane/.env.example`](../control-plane/.env.example) and read from the
-environment, so add them to the `control_plane` service rather than copying that file.
+The decision engine's own settings are documented in
+[`../decision-engine/.env.example`](../decision-engine/.env.example) and read from the
+environment, so add them to the `decision_engine` service rather than copying that file.
 
 ## Ordering
 
-`gateway` and `control_plane` wait for Redis and Postgres to pass their health checks
+`gateway` and `decision_engine` wait for Redis and Postgres to pass their health checks
 before starting, so a cold `up` does not race the stores. The gateway does not wait for
-the control plane, and never should — that independence is the point of the split, and
+the decision engine, and never should — that independence is the point of the split, and
 Compose is where it would be easiest to accidentally undo.
 
 ## Stopping

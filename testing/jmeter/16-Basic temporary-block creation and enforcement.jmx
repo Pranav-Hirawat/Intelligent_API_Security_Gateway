@@ -2,7 +2,7 @@
 <jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
   <hashTree>
     <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="16 - Basic temporary-block creation and enforcement" enabled="true">
-      <stringProp name="TestPlan.comments">A single-identity, endpoint-scoped demonstration. It sends SQL-injection evidence from one RFC 5737 address to GET /api/products/search, waits for the control plane, verifies an endpoint-scoped temporary_block policy, then sends a normal request to that same endpoint from the same address and expects the gateway to block it. Before running, confirm the stack is healthy, Adaptive mode is automatic, policy enforcement is enabled, and the gateway trusts X-Forwarded-For from this JMeter host. This plan sends attack traffic when run.</stringProp>
+      <stringProp name="TestPlan.comments">A single-identity, endpoint-scoped demonstration. It sends SQL-injection evidence from one RFC 5737 address to GET /api/products/search, waits for the decision engine, verifies an endpoint-scoped temporary_block policy, then sends a normal request to that same endpoint from the same address and expects the gateway to block it. Before running, confirm the stack is healthy, Adaptive mode is automatic, policy enforcement is enabled, and the gateway trusts X-Forwarded-For from this JMeter host. This plan sends attack traffic when run.</stringProp>
       <boolProp name="TestPlan.functional_mode">false</boolProp>
       <boolProp name="TestPlan.serialize_threadgroups">true</boolProp>
       <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="Variables" enabled="true">
@@ -52,7 +52,7 @@
         </HTTPSamplerProxy>
         <hashTree/>
       </hashTree>
-      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="2 - Wait for control-plane decision and gateway snapshot" enabled="true">
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="2 - Wait for decision-engine decision and gateway snapshot" enabled="true">
         <stringProp name="ThreadGroup.on_sample_error">STOPTEST</stringProp>
         <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Run once" enabled="true"><stringProp name="LoopController.loops">1</stringProp><boolProp name="LoopController.continue_forever">false</boolProp></elementProp>
         <stringProp name="ThreadGroup.num_threads">1</stringProp><stringProp name="ThreadGroup.ramp_time">1</stringProp><boolProp name="ThreadGroup.scheduler">false</boolProp>

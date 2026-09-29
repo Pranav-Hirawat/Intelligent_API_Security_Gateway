@@ -217,7 +217,7 @@ class Runner:
     def _respond(self, campaign, evidence, pending, result: CycleResult, config) -> None:
         """Decide, check the decision is safe, let a human overrule it, write."""
         # 4. decide -- validated numeric configuration and completed-window
-        # facts only. The gateway never waits for this control-plane work.
+        # facts only. The gateway never waits for this decision-engine work.
         # What humans have repeatedly done to this kind of campaign. Read before
         # this cycle's overrides are recorded, so a correction teaches the next
         # decision rather than rewriting the one it corrected.
@@ -257,7 +257,7 @@ class Runner:
             self.adaptive.lifecycle.repository.mark_status(
                 policy_id,
                 STATUS_REJECTED,
-                "control-plane",
+                "decision-engine",
                 {"reason": "final collateral review rejected the recommendation"},
             )
 
@@ -330,7 +330,7 @@ class Runner:
             remaining = int((decision.expires_at - now).total_seconds())
             if remaining <= 0:
                 self.adaptive.lifecycle.repository.mark_status(
-                    decision.policy_id, "expired", "control-plane"
+                    decision.policy_id, "expired", "decision-engine"
                 )
                 continue
             # Approval starts a bounded window at the analyst's click. Agent
@@ -357,7 +357,7 @@ class Runner:
 
     def run_forever(self) -> None:
         print(
-            f"[iasg] control plane started "
+            f"[iasg] decision engine started "
             f"(every {self.settings.interval_seconds}s, "
             f"dry_run={self.settings.dry_run})"
         )

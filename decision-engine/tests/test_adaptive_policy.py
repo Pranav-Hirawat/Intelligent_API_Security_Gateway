@@ -1,7 +1,7 @@
 """
 Closing the loop: an action that demonstrably failed is not simply repeated.
 
-The control plane already recorded what it did and what became of it. Nothing
+The decision engine already recorded what it did and what became of it. Nothing
 read any of it back -- the policy ladder saw confidence, severity and address
 count and nothing else, so a campaign that shrugged off three blocks was
 offered a fourth identical one.

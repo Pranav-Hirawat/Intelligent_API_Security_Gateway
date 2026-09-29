@@ -140,7 +140,7 @@ export default function SettingsPage() {
 
   return (
     <>
-      <PageHead eyebrow="Detection & enforcement" title="Protection">One place to manage detectors, automatic blocking, and control-plane policy.</PageHead>
+      <PageHead eyebrow="Detection & enforcement" title="Protection">One place to manage detectors, automatic blocking, and decision-engine policy.</PageHead>
       <div className="protection-bar">
         <ResetControl className="settings-reset" />
         <span className={source === "console" ? "pill on" : "pill"}>{source === "console" ? "Console override" : "Config file"}</span>
@@ -154,7 +154,7 @@ export default function SettingsPage() {
 
       <section className="protection-overview" aria-label="Enforcement controls">
         <article className="card protection-control"><div><span className="control-kicker">Gateway reflex</span><h2>Automatic blocking</h2><p>Trusted detector matches can be blocked immediately.</p></div><Field.Toggle label="Enabled" checked={draft.block.enabled} onChange={(value) => edit("block", "enabled", value)} /></article>
-        <article className="card protection-control"><div><span className="control-kicker">Control plane</span><h2>Policy decisions</h2><p>Apply temporary blocks and throttles written by the agent.</p></div><Field.Toggle label="Enabled" checked={draft.policy.enabled} onChange={(value) => edit("policy", "enabled", value)} /></article>
+        <article className="card protection-control"><div><span className="control-kicker">Decision engine</span><h2>Policy decisions</h2><p>Apply temporary blocks and throttles written by the agent.</p></div><Field.Toggle label="Enabled" checked={draft.policy.enabled} onChange={(value) => edit("policy", "enabled", value)} /></article>
       </section>
 
       <section className="protection-section">

@@ -6,11 +6,11 @@ import "time"
 // one found.
 //
 // There are two sources and the order between them is a deliberate choice: the
-// control plane comes first, the gateway's own reflex second.
+// decision engine comes first, the gateway's own reflex second.
 //
-// The reflex exists because the control plane is slow -- a decision takes up to
+// The reflex exists because the decision engine is slow -- a decision takes up to
 // one agent cycle plus one snapshot refresh to arrive. It is a stopgap held by
-// a component that knows only what one detector saw. The control plane, by the
+// a component that knows only what one detector saw. The decision engine, by the
 // time it has an opinion, has correlated an address with others, weighed a
 // campaign's history, taken account of any human override, and passed the
 // whole thing through simulation.

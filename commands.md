@@ -11,7 +11,7 @@ or production API.
 docker compose -f infra/docker-compose.yml up -d
 docker compose -f infra/docker-compose.yml ps
 docker compose -f infra/docker-compose.yml logs -f gateway
-docker compose -f infra/docker-compose.yml logs -f control_plane
+docker compose -f infra/docker-compose.yml logs -f decision_engine
 docker compose -f infra/docker-compose.yml down
 ```
 
@@ -59,7 +59,7 @@ Replace `infra_default` if `docker network ls` shows a different
 `<project>_default` network. Useful entry points are:
 
 - `4-SQL-Injection-Detection.jmx` — end-to-end evidence, correlation, policy, and `403` verification.
-- `9-Control-plane campaign correlation.jmx` — coordinated three-IP reconnaissance.
+- `9-Decision-engine campaign correlation.jmx` — coordinated three-IP reconnaissance.
 - `11-Policy enforcement monitor throttle temporary block escalate.jmx` — operator-selected policy outcomes.
 - `12-Adaptive rate limiting without attack signature.jmx` — valid-traffic adaptive throttling.
 - `14-BOLA ownership and object-enumeration protection.jmx` — ownership protection and object enumeration.
@@ -82,7 +82,7 @@ go test ./...
 go test ./internal/signals/ -race
 Pop-Location
 
-Push-Location control-plane
+Push-Location decision-engine
 $env:PYTHONPATH='.'
 .venv\Scripts\python.exe -m pytest -q
 Pop-Location
@@ -97,7 +97,7 @@ npm test
 Pop-Location
 ```
 
-The control-plane tests can write to a test Postgres database only when
+The decision-engine tests can write to a test Postgres database only when
 `IASG_TEST_POSTGRES_URL` is configured; never point it at the live demo
 database. See the component READMEs for local, non-Compose development and
 environment configuration.

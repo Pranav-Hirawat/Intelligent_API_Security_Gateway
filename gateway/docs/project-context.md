@@ -100,9 +100,9 @@ AI → Allow / Block
 | ID | Requirement | Status | Reality in code |
 | --- | --- | --- | --- |
 | **FR1** | Intercept API requests (reverse proxy + middleware) | **Complete** | Working |
-| **FR2** | Analyze request behavior (detectors → metrics) | **Complete** | Six detectors: flood, SQLi, brute force (`consecutive_failed_logins`), traversal/enumeration, unknown-route scanning, and IP reputation. Each fills the same `Evidence` shape; `signals.Collector` summarises them per request, the reflex reads that summary, and telemetry publishes it for the control plane |
+| **FR2** | Analyze request behavior (detectors → metrics) | **Complete** | Six detectors: flood, SQLi, brute force (`consecutive_failed_logins`), traversal/enumeration, unknown-route scanning, and IP reputation. Each fills the same `Evidence` shape; `signals.Collector` summarises them per request, the reflex reads that summary, and telemetry publishes it for the decision engine |
 | **FR3** | Adaptive rate limiting as a **decision outcome** | **Complete** | An opt-in baseline (`rate_limit.enforce`) holds every address to `requests_per_minute`; a throttle policy carries its own rate, set from campaign severity, and replaces the baseline in both directions. `policy.Limiter` answers `429` over whichever applies. Recovery is the policy's TTL lapsing |
-| **FR4** | Risk scoring + centralized decision engine | **Superseded by design** | Scoring is per-detector; decisions are split between the gateway reflex and the control plane. No central engine, and the dead `trust_engine` config has been removed |
+| **FR4** | Risk scoring + centralized decision engine | **Superseded by design** | Scoring is per-detector; decisions are split between the gateway reflex and the decision engine. No central engine, and the dead `trust_engine` config has been removed |
 | **FR5** | Forward valid / reject blocked / throttle | **Complete** | `policy.Enforcer` answers `403` for `temp_block`/`escalate` and `429` for a throttled address over its rate; the gateway's own reflex blocks on a threshold cross |
 | **FR6** | Logging & monitoring (Postgres + dashboard) | **Complete** | Redis hot telemetry (capped event stream + counters), durable campaign and feedback history in Postgres, and the Next.js console on :5177 |
 | **FR7** | Admin configuration (thresholds, detectors, lists) | **Complete** | The console's Settings page changes the whole `enforcement` block on a running gateway, via an override in Redis. Structural settings still need a restart |
@@ -137,7 +137,7 @@ Order in `gateway/internal/proxy/server.go` (outer → inner):
 7. The six detectors — reputation, flood, unknown-route scanning, SQLi, traversal/enumeration, brute force (`consecutive_failed_logins`). Each **records evidence and allows**
 8. `NewReverseProxy` — `httputil.NewSingleHostReverseProxy` + `X-Gateway: IASG`
 
-**Current behavior summary:** the gateway detects *and* enforces, but never decides in the request path. Every refusal acts on a decision already made — by the control plane, written to `policy:<ip>` and read from a background-refreshed snapshot, or by the reflex on an earlier request. The detectors themselves still only ever record and allow, which is what keeps a false positive cheap.
+**Current behavior summary:** the gateway detects *and* enforces, but never decides in the request path. Every refusal acts on a decision already made — by the decision engine, written to `policy:<ip>` and read from a background-refreshed snapshot, or by the reflex on an earlier request. The detectors themselves still only ever record and allow, which is what keeps a false positive cheap.
 
 ### 5.3 Config that is actually used at runtime
 
@@ -152,7 +152,7 @@ Used when building/starting the server:
 - `enforcement.unknown_route_scanning` → route-scan detector
 - `enforcement.ip_reputation` → reputation feed and detector
 - `enforcement.block` → the gateway's own reflex blocking
-- `enforcement.policy` / `enforcement.adaptive_rate_limit` → control-plane policy and quotas
+- `enforcement.policy` / `enforcement.adaptive_rate_limit` → decision-engine policy and quotas
 - `routes.*` → route templates and login outcomes for telemetry and brute force
 - `storage.redis` → hot telemetry (stream, stats, per-IP latest)
 
@@ -209,7 +209,7 @@ Intelligent_API_Security_Gateway/
 │           ├── enumeration_path_traversal.go
 │           ├── unknown_route_scanning.go  # distinct unmatched-path scanning, windowed
 │           └── ip_reputation.go        # known-bad list, fires on a cooldown
-├── control-plane/                      # Python agent — see control-plane.md
+├── decision-engine/                      # Python agent — see decision-engine.md
 ├── testing/
 │   ├── jmeter/                         # JMeter demo plans
 │   ├── signals/                        # HTTP test scripts for detectors (not in the gateway module)
@@ -265,7 +265,7 @@ type Evidence struct {
 }
 ```
 
-Brute force does not classify "spraying" versus "brute force" — that distinction exists only as a control-plane campaign classification derived from repeated brute-force evidence (`correlation/agent.py`), never as its own gateway signal.
+Brute force does not classify "spraying" versus "brute force" — that distinction exists only as a decision-engine campaign classification derived from repeated brute-force evidence (`correlation/agent.py`), never as its own gateway signal.
 
 #### Considered and deprioritized
 
@@ -273,7 +273,7 @@ Brute force does not classify "spraying" versus "brute force" — that distincti
 | --- | --- | --- |
 | **XSS** | Deprioritized | Too WAF-like; stay API-centric |
 
-The centralized decision engine imagined by the original SRS was superseded by design (see FR4 above) rather than left pending — decisions are split between the gateway reflex and the control plane's adaptive engine (`control-plane/iasg/adaptive/`), and persistent logging exists via Postgres.
+The centralized decision engine imagined by the original SRS was superseded by design (see FR4 above) rather than left pending — decisions are split between the gateway reflex and the decision engine's adaptive engine (`decision-engine/iasg/adaptive/`), and persistent logging exists via Postgres.
 
 **Reference pattern:** `Metrics(ip) Evidence` + never block.
 
@@ -417,7 +417,7 @@ checkable claim here as something to verify against the code before relying
 on it, the same way the rest of this document should be read.
 
 Known reconciliation passes: the gateway was originally detect-and-log only;
-enforcement and the adaptive control-plane engine
+enforcement and the adaptive decision-engine engine
 path were added afterward and are documented in
 [Policy Enforcement](policy-enforcement.md) and
 [Adaptive Policy and Analyst Control](adaptive-policy.md). The console's login
@@ -471,7 +471,7 @@ When docs conflict with code, **trust the Go sources and `reverse-proxy-logic.md
 ## 14. Key Implementation Facts for Coding Agents
 
 - Work inside `gateway/` as the Go module root.  
-- Do not reintroduce detector-owned hard blocks. Detectors observe and score; blocking belongs to `internal/enforcement` and the control plane.  
+- Do not reintroduce detector-owned hard blocks. Detectors observe and score; blocking belongs to `internal/enforcement` and the decision engine.  
 - There is no trust score and no `trust_engine` config. The model in use is **risk** (higher = worse): each detector emits a 0–100 score, and thresholds are read that way throughout. Do not reintroduce a competing trust-style scale.  
 - Compose and Dockerfile expect `./cmd/server`.  
 - Healthcheck in Dockerfile hits `/api/health` — that path is expected from the **backend**, not implemented as a gateway-local route today.  
@@ -483,4 +483,4 @@ When docs conflict with code, **trust the Go sources and `reverse-proxy-logic.md
 
 ## 15. One-Paragraph Absolute Truth
 
-IASG is a Go reverse proxy on port 8082 in front of a deliberately vulnerable API, paired with a Python control plane and a Next.js console. Six detectors — API flooding, SQL injection, brute force (`consecutive_failed_logins`), path traversal/enumeration, unknown-route scanning, and IP reputation — record evidence and always allow; the request path never decides anything. Refusals act on decisions made elsewhere: the control plane correlates evidence off-path every 30 seconds, groups addresses into campaigns, and writes `policy:<ip>` keys that the gateway reads from a background-refreshed snapshot, answering `403` for a block and `429` for an address over the rate its policy names. A faster gateway-side reflex covers the gap for signals trusted to act alone — brute force and unknown-route scanning are deliberately excluded from that trust and are advisory-only. The whole `enforcement` config block can be changed on a running gateway from the console. What the SRS called a centralized risk/decision engine was deliberately not built: scoring is per-detector and deciding is split between the reflex and the control plane's adaptive engine, which is why the `trust_engine` config was deleted rather than implemented. The console has no authentication, and the gateway has no health endpoint and no graceful shutdown — those are the honest gaps.
+IASG is a Go reverse proxy on port 8082 in front of a deliberately vulnerable API, paired with a Python decision engine and a Next.js console. Six detectors — API flooding, SQL injection, brute force (`consecutive_failed_logins`), path traversal/enumeration, unknown-route scanning, and IP reputation — record evidence and always allow; the request path never decides anything. Refusals act on decisions made elsewhere: the decision engine correlates evidence off-path every 30 seconds, groups addresses into campaigns, and writes `policy:<ip>` keys that the gateway reads from a background-refreshed snapshot, answering `403` for a block and `429` for an address over the rate its policy names. A faster gateway-side reflex covers the gap for signals trusted to act alone — brute force and unknown-route scanning are deliberately excluded from that trust and are advisory-only. The whole `enforcement` config block can be changed on a running gateway from the console. What the SRS called a centralized risk/decision engine was deliberately not built: scoring is per-detector and deciding is split between the reflex and the decision engine's adaptive engine, which is why the `trust_engine` config was deleted rather than implemented. The console has no authentication, and the gateway has no health endpoint and no graceful shutdown — those are the honest gaps.

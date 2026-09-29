@@ -1,5 +1,5 @@
 # Build from the repository root:
-#   docker build -f control-plane/Dockerfile .
+#   docker build -f decision-engine/Dockerfile .
 FROM python:3.12-slim
 
 ENV PYTHONUNBUFFERED=1 \
@@ -7,7 +7,7 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-COPY control-plane/ /app/
+COPY decision-engine/ /app/
 RUN pip install '.[postgres]'
 
 CMD ["python", "-m", "iasg"]

@@ -26,7 +26,7 @@ jobs:
 
     # The settings watcher, the telemetry store and the policy store are what
     # talk to Redis, and a fake cannot tell us they write what the console and
-    # control plane read. Each test package uses its own database number.
+    # decision engine read. Each test package uses its own database number.
     services:
       redis:
         image: redis:8.6
@@ -59,8 +59,8 @@ jobs:
           IASG_TEST_REDIS_ADDR: localhost:6379
         run: go test ./...
 
-  control-plane:
-    name: Python control plane
+  decision-engine:
+    name: Python decision engine
     runs-on: ubuntu-latest
 
     services:
@@ -96,11 +96,11 @@ jobs:
           cache: pip
 
       - name: Install
-        working-directory: control-plane
+        working-directory: decision-engine
         run: pip install -e ".[dev,ml,postgres]"
 
       - name: Test
-        working-directory: control-plane
+        working-directory: decision-engine
         env:
           # Without this the sixteen Postgres tests skip. They are the ones
           # least likely to be run by hand, which is the argument for running
@@ -176,9 +176,9 @@ jobs:
           - name: gateway
             context: gateway
             file: gateway/Dockerfile
-          - name: control-plane
+          - name: decision-engine
             context: .
-            file: control-plane/Dockerfile
+            file: decision-engine/Dockerfile
           - name: dashboard
             context: gateway-dashboard
             file: gateway-dashboard/Dockerfile

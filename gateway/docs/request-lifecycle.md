@@ -52,7 +52,7 @@ sequenceDiagram
 
 ### The resolver must come first
 
-Every detector keys its state by client IP, and the control plane writes policy
+Every detector keys its state by client IP, and the decision engine writes policy
 against that IP. If two components disagree about who the caller is, one of
 them is counting the wrong machine.
 
@@ -72,7 +72,7 @@ opposite directions:
 That second point was a real defect. When telemetry wrapped the resolver
 instead, it held the pre-resolution request, recorded the peer address, and
 then looked up detector state under that wrong IP. Behind a proxy, every event
-recorded `fired: []` and the control plane never saw an attack at all.
+recorded `fired: []` and the decision engine never saw an attack at all.
 
 This outer telemetry stage does not read the body. After policy admission,
 `BodyLimitMiddleware` caps it and `telemetry.CaptureBody` captures a redacted

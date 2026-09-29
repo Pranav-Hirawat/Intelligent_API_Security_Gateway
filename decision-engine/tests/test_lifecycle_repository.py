@@ -64,7 +64,7 @@ def test_only_approved_rows_are_offered_for_activation(repo):
 
     assert [d.policy_id for d in (r.decision for r in repo.approved_recommendations())] == [approved.policy_id]
 
-    repo.mark_status(approved.policy_id, STATUS_ACTIVE, "control-plane")
+    repo.mark_status(approved.policy_id, STATUS_ACTIVE, "decision-engine")
     assert repo.approved_recommendations() == []
 
 

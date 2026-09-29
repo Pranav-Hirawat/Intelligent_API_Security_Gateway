@@ -11,8 +11,8 @@ import (
 	"github.com/Adnan-Safdari/Intelligent_API_Security_Gateway/internal/netutil"
 )
 
-// Enforcer applies control-plane decisions to live requests. It is the only
-// place where anything the control plane produced can affect real traffic.
+// Enforcer applies decision-engine decisions to live requests. It is the only
+// place where anything the decision engine produced can affect real traffic.
 // enforcerTunables is what the console can move at runtime, swapped whole.
 type enforcerTunables struct {
 	// policyOn decides whether the lookup sources are consulted at all.

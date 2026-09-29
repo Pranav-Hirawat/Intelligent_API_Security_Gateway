@@ -2,7 +2,7 @@
 Evidence and policy as they cross process boundaries.
 
 Everything here is read from something another program wrote -- the gateway,
-the seeder, an older control plane, the dashboard. A malformed record must be
+the seeder, an older decision engine, the dashboard. A malformed record must be
 skipped or defaulted, never crash the cycle that happens to read it.
 """
 

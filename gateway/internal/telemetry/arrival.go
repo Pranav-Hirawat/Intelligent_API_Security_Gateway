@@ -15,7 +15,7 @@ import "time"
 // answers never gets one.
 //
 // Deliberately a separate stream rather than a kind field on iasg:events: the
-// console, the iasg:stats and iasg:attackers counters, and the control plane's
+// console, the iasg:stats and iasg:attackers counters, and the decision engine's
 // Evidence consumer all read that stream, and none of them should have to
 // learn to skip half of it.
 type Arrival struct {

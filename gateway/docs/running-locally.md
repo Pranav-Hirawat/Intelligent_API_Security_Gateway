@@ -73,5 +73,5 @@ flowchart TD
 ## Notes
 
 - If `configs/config.yaml` does not exist, the gateway fails to start — `config.Load()` returns an error and `main.go` calls `log.Fatalf`.
-- Redis is load-bearing today: the gateway writes telemetry through it and reads the policy snapshot from it (`internal/storage/redis`). Postgres configuration is mapped in YAML but not yet read by any Go code — it is used by the Python control plane and the dashboard, not the gateway.
+- Redis is load-bearing today: the gateway writes telemetry through it and reads the policy snapshot from it (`internal/storage/redis`). Postgres configuration is mapped in YAML but not yet read by any Go code — it is used by the Python decision engine and the dashboard, not the gateway.
 - In Docker Compose, the gateway uses the same config file and reads the backend target from `IASG_BACKEND_URL`.

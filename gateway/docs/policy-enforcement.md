@@ -1,6 +1,6 @@
 ﻿# Policy enforcement and adaptive rate limiting
 
-The Go gateway enforces decisions already made by the Python control plane or
+The Go gateway enforces decisions already made by the Python decision engine or
 its own reflex. Policy lookup uses a background-refreshed local snapshot; the
 gateway never calls Python, PostgreSQL, or a model while handling a request.
 Distributed rate accounting is the one synchronous Redis operation: a bounded
@@ -58,7 +58,7 @@ priority, the endpoint scope wins.
 
 The Python writer does not create `monitor` keys because they perform no
 enforcement. The gateway accepts them for compatibility with existing policy
-producers. The first applicable source wins: control-plane policies outrank
+producers. The first applicable source wins: decision-engine policies outrank
 gateway reflex decisions, including a less restrictive `allow` or `monitor`.
 A scoped policy only takes precedence on requests matching its selectors.
 
@@ -69,7 +69,7 @@ returned `403`. This remains unchanged. Separately, the Python runner writes
 the policy, produces its advisory explanation/assessment, then calls
 `AlertSink.raise_for()` to append one human-review alert per campaign to the
 `iasg_alerts` Redis stream. That stream is the existing alert mechanism; the
-gateway does not send notifications or call the control plane. Directly
+gateway does not send notifications or call the decision engine. Directly
 inserting an `escalate` key tests `403` but does not run Python's alert workflow.
 
 ## Configuration
@@ -77,7 +77,7 @@ inserting an `escalate` key tests `403` but does not run Python's alert workflow
 This is the Go gateway's own configurable-limits surface — rate limits,
 timeouts, and the Redis policy lookup. It never reads `AdaptiveConfig` or
 Postgres directly; `adaptive-policy.md`'s "Configurable policy limits" is the
-control-plane side of that same category, on the other side of the `policy:`
+decision-engine side of that same category, on the other side of the `policy:`
 Redis keys.
 
 Merge these settings into the existing configuration; preserve local tuning.
@@ -256,7 +256,7 @@ requires CGO and a C compiler; use a toolchain with those installed.
 These **Bash** commands start an isolated demo gateway on port 8083 using an
 unused Redis database 15. Reserve that database for the demo or choose another
 unused database everywhere below. They leave the normal gateway configuration,
-control-plane policies, dashboard settings, and event stream alone. Run from
+decision-engine policies, dashboard settings, and event stream alone. Run from
 the repository root.
 
 ```bash
@@ -358,7 +358,7 @@ dc exec -T redis redis-cli -n 15 XTRIM iasg:events MAXLEN 0
 dc exec -T redis redis-cli -n 15 XINFO GROUPS iasg:events
 ```
 
-The isolated demo has no control-plane consumer. If exercising the main stack
+The isolated demo has no decision-engine consumer. If exercising the main stack
 instead, clean its test history through `POST /api/admin/reset` with
 `{"confirm":"reset"}` and verify `XINFO GROUPS iasg:events` still contains the
 consumer groups. Never `DEL` the main event stream: that also deletes its
@@ -373,6 +373,6 @@ consumer groups. Resetting history deliberately does not remove `policy:*`.
 | `internal/policy/` | Redis Lua limiter and policy tests |
 | `internal/netutil/ip.go` | Trusted client-IP resolution |
 | `internal/telemetry/` | Structured request events and background publication |
-| `control-plane/iasg/models.py` | Existing serialized policy contract |
-| `control-plane/iasg/policy/writer.py` | Public-address, positive-TTL, cycle-cap, and dry-run rails |
-| `control-plane/iasg/alerts.py` | Existing escalation alerts |
+| `decision-engine/iasg/models.py` | Existing serialized policy contract |
+| `decision-engine/iasg/policy/writer.py` | Public-address, positive-TTL, cycle-cap, and dry-run rails |
+| `decision-engine/iasg/alerts.py` | Existing escalation alerts |

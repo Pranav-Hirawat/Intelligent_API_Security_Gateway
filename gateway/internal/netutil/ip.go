@@ -1,7 +1,7 @@
 // Package netutil works out which address a request should be attributed to.
 //
 // This matters more than it looks. Every detector keys its state by client IP,
-// and the control plane writes policy against that IP, so getting it wrong
+// and the decision engine writes policy against that IP, so getting it wrong
 // means both detecting and blocking the wrong machine. Behind a load balancer
 // the TCP peer is the balancer, so without X-Forwarded-For every request looks
 // like it came from one address -- and enforcing a block on it would take the
