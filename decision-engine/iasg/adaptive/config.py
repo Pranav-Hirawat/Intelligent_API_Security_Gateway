@@ -109,8 +109,8 @@ class AdaptiveConfig:
             errors.append("baseline.window_seconds must be 60")
         if not 3 <= b.rolling_windows <= 1440:
             errors.append("baseline.rolling_windows must be between 3 and 1440")
-        if not 3 <= b.warmup_windows <= b.rolling_windows:
-            errors.append("baseline.warmup_windows must be between 3 and rolling_windows")
+        if not 1 <= b.warmup_windows <= b.rolling_windows:
+            errors.append("baseline.warmup_windows must be between 1 and rolling_windows")
         if not 0.1 <= b.mad_multiplier <= 20:
             errors.append("baseline.mad_multiplier must be between 0.1 and 20")
         if not 0 <= b.minimum_mad <= 1000:

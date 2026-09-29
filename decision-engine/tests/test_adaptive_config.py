@@ -25,6 +25,10 @@ def test_the_shipped_defaults_are_valid():
     assert AdaptiveConfig().validate() == AdaptiveConfig()
 
 
+def test_one_window_warmup_is_valid_for_a_short_demonstration():
+    assert changed("baseline", warmup_windows=1).validate().baseline.warmup_windows == 1
+
+
 # One row per rule: an operator typing any of these gets a refusal that names
 # the setting, rather than a controller running on a nonsensical number.
 REFUSED = [
@@ -32,6 +36,7 @@ REFUSED = [
     ("baseline", {"method": "mean"}, "baseline.method"),
     ("baseline", {"window_seconds": 30}, "baseline.window_seconds"),
     ("baseline", {"rolling_windows": 2}, "baseline.rolling_windows"),
+    ("baseline", {"warmup_windows": 0}, "baseline.warmup_windows"),
     ("baseline", {"warmup_windows": 500}, "baseline.warmup_windows"),
     ("baseline", {"mad_multiplier": 0.05}, "baseline.mad_multiplier"),
     ("baseline", {"minimum_mad": -1}, "baseline.minimum_mad"),

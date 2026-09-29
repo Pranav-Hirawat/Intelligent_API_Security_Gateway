@@ -242,6 +242,42 @@ def test_adaptive_configuration_and_baseline_survive_a_restart(db):
     assert loaded.samples == [3.0, 4.0, 4.0, 5.0]
 
 
+def test_file_defaults_survive_a_console_override_for_later_revert(db):
+    """Booting with a changed file must not silently replace an operator choice."""
+    file_config = AdaptiveConfig.from_mapping({"mode": "monitor", "version": 1})
+    console_config = AdaptiveConfig.from_mapping({"mode": "automatic", "version": 8})
+    with db._conn.cursor() as cur:
+        cur.execute(
+            "UPDATE adaptive_settings SET version=%s, mode=%s, config=%s::jsonb,"
+            " source='console' WHERE singleton_id=1",
+            (console_config.version, console_config.mode, json.dumps(console_config.to_dict())),
+        )
+
+    db.adaptive.ensure_config(file_config)
+
+    with db._conn.cursor() as cur:
+        cur.execute(
+            "SELECT source, config, file_config FROM adaptive_settings WHERE singleton_id=1"
+        )
+        source, current, file_value = cur.fetchone()
+    current = current if isinstance(current, dict) else json.loads(current)
+    file_value = file_value if isinstance(file_value, dict) else json.loads(file_value)
+
+    assert source == "console"
+    assert current["mode"] == "automatic"
+    assert file_value["mode"] == "monitor"
+
+    # This is the database transition the dashboard's Revert endpoint makes.
+    with db._conn.cursor() as cur:
+        cur.execute(
+            "UPDATE adaptive_settings SET version=version+1, mode=%s, config=%s::jsonb,"
+            " source='file' WHERE singleton_id=1",
+            (file_value["mode"], json.dumps(file_value)),
+        )
+
+    assert db.adaptive.load_config(file_config).mode == "monitor"
+
+
 def test_loading_a_legacy_config_repairs_the_dashboard_document(db):
     """A retired field cannot keep returning through the dashboard form."""
     stale = AdaptiveConfig().to_dict()

@@ -14,12 +14,14 @@ export default function AdaptivePage() {
     recommendations: [],
     audit: [],
     activePolicies: [],
+    source: "file",
   });
   const [draft, setDraft] = useState(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
   const [advancedSection, setAdvancedSection] = useState("guardrails");
-  const [confirmAdvancedSave, setConfirmAdvancedSave] = useState(false);
+  const [confirming, setConfirming] = useState("");
+  const [confirmText, setConfirmText] = useState("");
   const [savedConfig, setSavedConfig] = useState(null);
 
   const load = useCallback(async () => {
@@ -44,37 +46,42 @@ export default function AdaptivePage() {
   const selectedMode = draft?.mode || effectiveMode;
   const savedMode = MODE_OPTIONS.find((option) => option.value === effectiveMode);
 
-  async function saveConfig(config, key) {
-    setBusy(key);
+  async function applyChanges() {
+    if (!draft) return;
+    setBusy("apply");
     const response = await fetch("/api/adaptive/settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(config),
+      body: JSON.stringify({ confirm: "apply", config: structuredClone(draft) }),
     });
     const value = await response.json();
     setBusy("");
     if (!response.ok) {
       setError(value.error || "settings rejected");
-      return false;
+      return;
     }
-    setData((current) => ({ ...current, config: value.config }));
+    setConfirming("");
+    setConfirmText("");
+    setData((current) => ({ ...current, config: value.config, source: "console" }));
     setDraft(structuredClone(value.config));
     setSavedConfig(value.config);
     await load();
-    return true;
   }
 
-  function saveChoices() {
-    if (!data.config || !draft) return;
-    saveConfig({
-      ...structuredClone(data.config),
-      mode: draft.mode,
-      guardrails: {
-        ...data.config.guardrails,
-        maximum_automatic_action: draft.guardrails.maximum_automatic_action,
-        behavioural_throttle_enabled: draft.guardrails.behavioural_throttle_enabled,
-      },
-    }, "choices");
+  async function revertChanges() {
+    setBusy("revert");
+    const response = await fetch("/api/adaptive/settings", { method: "DELETE" });
+    const value = await response.json();
+    setBusy("");
+    if (!response.ok) {
+      setError(value.error || "could not revert adaptive settings");
+      return;
+    }
+    setConfirming("");
+    setConfirmText("");
+    setData((current) => ({ ...current, config: value.config, source: "file" }));
+    setDraft(structuredClone(value.config));
+    await load();
   }
 
   async function decide(row, decision) {
@@ -109,10 +116,6 @@ export default function AdaptivePage() {
     setDraft((current) => ({ ...current, [section]: { ...current[section], [name]: value } }));
   }
 
-  async function saveAdvancedSettings() {
-    if (await saveConfig(draft, "advanced")) setConfirmAdvancedSave(false);
-  }
-
   // One row per plain numeric setting: [key, label, step?].
   const numberFields = (section, rows) => rows.map(([name, label, step]) => (
     <Field.Number
@@ -123,6 +126,8 @@ export default function AdaptivePage() {
       onChange={(value) => edit(section, name, Number(value))}
     />
   ));
+  const dirty = draft && data.config && JSON.stringify(draft) !== JSON.stringify(data.config);
+  const source = data.source === "console" ? "console" : "file";
 
   return (
     <>
@@ -131,6 +136,35 @@ export default function AdaptivePage() {
       </PageHead>
 
       {error ? <p className="notice bad">{error}</p> : null}
+
+      {draft ? (
+        <div className="protection-bar adaptive-config-bar">
+          <span className={source === "console" ? "pill on" : "pill"}>
+            {source === "console" ? "Console override" : "Config file"}
+          </span>
+          <span className="protection-status">
+            {source === "console" ? "Adaptive settings are overridden" : "Using adaptive file settings"}
+          </span>
+          <span className="grow" />
+          {dirty ? <span className="unsaved">Unsaved changes</span> : null}
+          <button
+            type="button"
+            className="act"
+            disabled={Boolean(busy) || source !== "console"}
+            onClick={() => setConfirming("revert")}
+          >
+            Revert
+          </button>
+          <button
+            type="button"
+            className="act primary"
+            disabled={Boolean(busy) || !dirty}
+            onClick={() => setConfirming("apply")}
+          >
+            Apply changes
+          </button>
+        </div>
+      ) : null}
 
       {draft ? (
         <section className="card mode-overview">
@@ -195,9 +229,6 @@ export default function AdaptivePage() {
             </div>
           ) : null}
 
-          <button className="act primary" type="button" disabled={Boolean(busy)} onClick={saveChoices}>
-            {busy === "choices" ? "Saving..." : "Save selection"}
-          </button>
         </section>
       ) : null}
 
@@ -443,37 +474,49 @@ export default function AdaptivePage() {
             </section>
           </div>
 
-          <button
-            className="act primary"
-            type="button"
-            disabled={Boolean(busy)}
-            onClick={() => setConfirmAdvancedSave(true)}
-          >
-            {busy === "advanced" ? "Saving advanced settings..." : "Save advanced settings"}
-          </button>
         </details>
       ) : null}
 
-      {confirmAdvancedSave ? (
-        <div className="modal-overlay" onMouseDown={() => !busy && setConfirmAdvancedSave(false)}>
+      {confirming ? (
+        <div className="modal-overlay" onMouseDown={() => !busy && (setConfirming(""), setConfirmText(""))}>
           <section
             className="modal-card"
             role="dialog"
             aria-modal="true"
-            aria-labelledby="save-advanced-settings-title"
+            aria-labelledby="save-adaptive-settings-title"
             onMouseDown={(event) => event.stopPropagation()}
           >
-            <h2 id="save-advanced-settings-title">Save advanced settings?</h2>
+            <h2 id="save-adaptive-settings-title">
+              {confirming === "apply" ? "Apply adaptive changes?" : "Revert adaptive settings to the config file?"}
+            </h2>
             <p>
-              This updates policy guardrails, baseline learning, and risk tuning for the decision
-              engine. The server will reject invalid or outdated changes.
+              {confirming === "apply"
+                ? "This stores a console override. The decision engine applies it on its next cycle."
+                : "This removes the console override and restores the decision engine's boot/file configuration on its next cycle."}
             </p>
+            <label className="modal-label">
+              Type <b>{confirming}</b> to confirm
+              <input
+                type="text"
+                autoFocus
+                disabled={Boolean(busy)}
+                value={confirmText}
+                onChange={(event) => setConfirmText(event.target.value)}
+                onKeyDown={(event) => event.key === "Enter" && confirmText === confirming && !busy && (confirming === "apply" ? applyChanges() : revertChanges())}
+                placeholder={confirming}
+              />
+            </label>
             <div className="modal-actions">
-              <button type="button" className="act" disabled={Boolean(busy)} onClick={() => setConfirmAdvancedSave(false)}>
+              <button type="button" className="act" disabled={Boolean(busy)} onClick={() => { setConfirming(""); setConfirmText(""); }}>
                 Cancel
               </button>
-              <button type="button" className="act primary" disabled={Boolean(busy)} onClick={saveAdvancedSettings}>
-                {busy === "advanced" ? "Saving..." : "Save settings"}
+              <button
+                type="button"
+                className="act danger"
+                disabled={Boolean(busy) || confirmText !== confirming}
+                onClick={confirming === "apply" ? applyChanges : revertChanges}
+              >
+                {busy ? "Working..." : confirming === "apply" ? "Apply" : "Revert"}
               </button>
             </div>
           </section>
