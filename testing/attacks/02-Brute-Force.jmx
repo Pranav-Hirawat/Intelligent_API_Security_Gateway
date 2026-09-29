@@ -115,11 +115,17 @@
             <stringProp name="HTTPSampler.domain">${HOST}</stringProp>
             <stringProp name="HTTPSampler.port">${PORT}</stringProp>
             <stringProp name="HTTPSampler.protocol">http</stringProp>
-            <stringProp name="HTTPSampler.path">/api/products</stringProp>
-            <stringProp name="HTTPSampler.method">GET</stringProp>
-            <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
-            <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="User Defined Variables">
-              <collectionProp name="Arguments.arguments"/>
+            <stringProp name="HTTPSampler.path">/api/login</stringProp>
+            <stringProp name="HTTPSampler.method">POST</stringProp>
+            <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+            <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+              <collectionProp name="Arguments.arguments">
+                <elementProp name="" elementType="HTTPArgument">
+                  <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                  <stringProp name="Argument.value">{&quot;email&quot;:&quot;victim@example.com&quot;,&quot;password&quot;:&quot;wrong-password&quot;}</stringProp>
+                  <stringProp name="Argument.metadata">=</stringProp>
+                </elementProp>
+              </collectionProp>
             </elementProp>
           </HTTPSamplerProxy>
           <hashTree>
@@ -143,7 +149,7 @@
         </hashTree>
         <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="RESULT - requests and policies" enabled="true">
           <stringProp name="scriptLanguage">groovy</stringProp>
-          <stringProp name="script">def line=&quot;requests -&gt; allowed: ${props.get(&apos;iasg.allowed&apos;)} (plus 18 setup 401s), throttled: ${props.get(&apos;iasg.throttled&apos;)}, temp_blocked/escalated: ${props.get(&apos;iasg.blocked&apos;)}; policies made: 3 (throttle)&quot;; log.info(&apos;[attack-02] &apos;+line); SampleResult.setResponseData(line,&apos;UTF-8&apos;); SampleResult.setResponseMessage(line)</stringProp>
+          <stringProp name="script">def n={ (props.get(&apos;iasg.&apos;+it) ?: &apos;0&apos;) as int }; def line=&quot;follow-up -&gt; allowed: ${n(&apos;allowed&apos;)}, throttled: ${n(&apos;throttled&apos;)}, blocked: ${n(&apos;blocked&apos;)}; expected policies: 3 throttle on POST /api/login (follow-ups are failed logins: allowed means 401)&quot;; log.info(&apos;[attack-02] &apos;+line); SampleResult.setResponseData(line,&apos;UTF-8&apos;); if (n(&apos;throttled&apos;) == 0) { SampleResult.setSuccessful(false); SampleResult.setResponseMessage(&apos;FAIL: no follow-up request was throttled (429) -- &apos;+line) } else { SampleResult.setResponseMessage(line) }</stringProp>
           <stringProp name="parameters"></stringProp>
           <stringProp name="filename"></stringProp>
           <stringProp name="cacheKey">false</stringProp>
