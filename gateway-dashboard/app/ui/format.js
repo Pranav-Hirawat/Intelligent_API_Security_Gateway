@@ -57,7 +57,27 @@ const ACTION_LABELS = {
   throttle: "Throttle",
   temp_block: "Temporary block",
   escalate: "Escalate",
+  rate_limited: "Rate limited",
+  ownership_refused: "Refused: not the owner",
+  authentication_required: "Refused: login required",
+  body_too_large: "Refused: body too large",
+  body_unreadable: "Refused: unreadable body",
 };
+
+// Refusals the gateway makes on its own, with no policy behind them. The event
+// still carries decision "allow" -- no policy acted -- but the client was
+// refused, and showing "allow" beside a 404 the gateway wrote reads as a
+// missing object that nothing stopped.
+const GATEWAY_REFUSALS = new Set([
+  "ownership_refused", "authentication_required", "body_too_large", "body_unreadable",
+]);
+
+/** What happened to a request: the policy's action, or the gateway's own refusal. */
+export function eventAction(event = {}) {
+  const decision = event.decision || "allow";
+  if (decision === "allow" && GATEWAY_REFUSALS.has(event.gatewayReason)) return event.gatewayReason;
+  return decision;
+}
 
 export function actionLabel(action) {
   if (!action) return "No action";

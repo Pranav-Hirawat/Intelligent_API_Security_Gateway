@@ -27,7 +27,7 @@ test("both spellings of a temporary block read the same", () => {
   assert.equal(actionLabel("temporary_block"), "Temporary block");
   assert.equal(actionLabel("temp_block"), "Temporary block");
   assert.equal(actionLabel(""), "No action");
-  assert.equal(actionLabel("rate_limited"), "rate limited");
+  assert.equal(actionLabel("rate_limited"), "Rate limited");
 });
 
 test("risk is bounded to 0..100 and toned at 30 and 70", () => {

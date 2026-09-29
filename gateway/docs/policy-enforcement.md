@@ -58,9 +58,14 @@ priority, the endpoint scope wins.
 
 The Python writer does not create `monitor` keys because they perform no
 enforcement. The gateway accepts them for compatibility with existing policy
-producers. The first applicable source wins: decision-engine policies outrank
-gateway reflex decisions, including a less restrictive `allow` or `monitor`.
-A scoped policy only takes precedence on requests matching its selectors.
+producers. When a decision-engine policy and a gateway reflex block both apply,
+the more restrictive action wins; between equals, the decision-engine policy.
+The reflex refuses an address before the detectors run, so the engine decides
+on less evidence than the reflex saw, and its milder answer must not lift the
+block. A human decision (`source: human` or `mode: manual_override`) is the
+exception: it wins whatever it says, which is how an address the gateway
+blocked by itself is released. A scoped policy only applies to requests
+matching its selectors.
 
 ### What `escalate` already means
 

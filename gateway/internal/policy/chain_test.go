@@ -26,20 +26,47 @@ func TestChainReturnsTheFirstSourceThatHasAnOpinion(t *testing.T) {
 	}
 }
 
-func TestTheAgentOutranksTheReflexEvenWhenItIsLenient(t *testing.T) {
-	// The reflex fired before anyone had thought about this address. The agent
-	// has since correlated it, weighed the campaign, and chosen to throttle.
-	// The considered decision wins -- this is also how a human override reaches
-	// an address the gateway blocked by itself.
-	agent := fake{"203.0.113.9": {Action: ActionThrottle, Reason: "considered"}}
-	reflex := fake{"203.0.113.9": {Action: ActionTempBlock, Reason: "reflex"}}
+// The reflex hides every request after the one that armed it, so the engine
+// decides on less than the reflex saw. Its milder answer must not lift the
+// block: that is how a traversal attacker got back in a cycle after the probe.
+func TestAMilderEngineDecisionCannotLiftAReflexBlock(t *testing.T) {
+	agent := fake{"203.0.113.9": {Action: ActionThrottle, Source: "adaptive"}}
+	reflex := fake{"203.0.113.9": {Action: ActionTempBlock, Source: "gateway_reflex"}}
 
 	d, ok := Chain{agent, reflex}.Lookup("203.0.113.9")
-	if !ok {
-		t.Fatal("no decision")
+	if !ok || d.Action != ActionTempBlock || d.Source != "gateway_reflex" {
+		t.Errorf("got %+v, want the reflex block to stand", d)
 	}
-	if d.Action != ActionThrottle || d.Reason != "considered" {
-		t.Errorf("got %+v, want the agent's throttle to win", d)
+}
+
+func TestTheMoreSevereActionWinsAndTheEngineKeepsTies(t *testing.T) {
+	for name, tc := range map[string]struct {
+		agent, reflex Decision
+		want          string
+	}{
+		"engine escalates past the reflex": {Decision{Action: ActionEscalate}, Decision{Action: ActionTempBlock}, "engine"},
+		"equal blocks keep the engine's":   {Decision{Action: ActionTemporaryBlock}, Decision{Action: ActionTempBlock}, "engine"},
+		"an unknown label never outranks":  {Decision{Action: "quarantine"}, Decision{Action: ActionTempBlock}, "reflex"},
+	} {
+		tc.agent.Reason, tc.reflex.Reason = "engine", "reflex"
+		d, _ := Chain{fake{"203.0.113.9": tc.agent}, fake{"203.0.113.9": tc.reflex}}.Lookup("203.0.113.9")
+		if d.Reason != tc.want {
+			t.Errorf("%s: got the %s decision %+v", name, d.Reason, d)
+		}
+	}
+}
+
+// A human override is how an address the gateway blocked by itself is released,
+// so a person's decision wins even when it is milder.
+func TestAPersonsInstructionOutranksTheReflex(t *testing.T) {
+	for _, human := range []Decision{
+		{Action: ActionAllow, Source: "human"},
+		{Action: ActionThrottle, Mode: "manual_override"},
+	} {
+		d, ok := Chain{fake{"203.0.113.9": human}, fake{"203.0.113.9": {Action: ActionTempBlock}}}.Lookup("203.0.113.9")
+		if !ok || d.Action != human.Action {
+			t.Errorf("human %+v: got %+v", human, d)
+		}
 	}
 }
 
