@@ -51,27 +51,28 @@ extra_css:
   - stylesheets/extra.css
 nav:
   - Overview: index.md
-  - Project Context: project-context.md
-  - Architecture:
+  - Project Guide:
+      - Context and Scope: project-context.md
+      - Project Structure: project-structure.md
       - System Architecture: system-architecture.md
       - Request Lifecycle: request-lifecycle.md
-      - Project Structure: project-structure.md
-      - Reverse Proxy Logic: reverse-proxy-logic.md
-      - Identifying the Client: client-ip.md
-  - Security Pipeline:
+  - Gateway Modules:
+      - Gateway Overview: modules/proxy-module.md
+      - Reverse Proxy and Body Safety: reverse-proxy-logic.md
+      - Client IP Resolution: client-ip.md
       - Detection Signals: detection-signals.md
+      - Enforcement and Ownership: modules/enforcement-ownership.md
       - Policy Enforcement: policy-enforcement.md
+      - Redis and Telemetry: modules/redis-telemetry.md
       - Network-Level Blocking: network-level-blocking.md
+  - Decision Engine Modules:
       - Decision Engine: decision-engine.md
-  - Adaptive Control:
-      - Adaptive Policy and Analyst Control: adaptive-policy.md
-  - Modules:
-      - Proxy Module: modules/proxy-module.md
-      - Attack Detection and Enforcement: modules/enforcement-ownership.md
+      - Adaptive Policy: adaptive-policy.md
+      - The 17 Algorithms: modules/algorithms.md
+  - Dashboard and Testing:
+      - Dashboard: modules/dashboard.md
       - Signal Test Scripts: modules/signal-tests.md
-      - Redis Telemetry: modules/redis-telemetry.md
-      - Command Center Dashboard: modules/dashboard.md
   - Operations:
-      - Running the Gateway Locally: running-locally.md
-      - Running with Docker: running-with-docker.md
-      - Protecting Your Own API: protecting-your-own-api.md
+      - Run Locally: running-locally.md
+      - Run with Docker: running-with-docker.md
+      - Protect Your Own API: protecting-your-own-api.md

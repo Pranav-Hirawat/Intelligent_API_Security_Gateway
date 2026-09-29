@@ -1,57 +1,37 @@
-# Adaptive policy and analyst control
+# Adaptive Policy Module
 
-The adaptive system runs in the Python decision engine after a completed
-60-second window. The Go gateway never waits for this work: it refreshes an
-expiring policy snapshot in the background and performs an in-memory lookup on
-the request path.
+Adaptive policy helps the decision engine distinguish ordinary traffic changes
+from suspicious deviation. It is not a synchronous gateway feature.
 
 ## Baselines
 
-The decision engine learns a separate normal request rate for every normalized
-HTTP method and route template. It uses a bounded rolling sample and derives a
-threshold with `median + mad_multiplier * max(MAD, minimum_mad)`. Warm-up,
-hard limits, hysteresis, and cooldown prevent one unusual minute from changing
-the learned normal rate.
+The decision engine groups clean completed traffic into one-minute endpoint
+windows. For each method and normalized route it learns a bounded baseline from
+recent trusted windows using median and median absolute deviation (MAD).
 
-Only complete, detector-clean, allowed windows with uninterrupted telemetry
-health are admitted to a baseline. A deviation from a ready baseline is an
-explainable behavioural input; it is never sufficient by itself to create an
-active policy.
+Incomplete or unhealthy windows are excluded so a telemetry outage does not
+become a new normal. The baseline changes only after warm-up and configured
+cooldown rules.
 
-## Risk and confidence
+## Risk and actions
 
-The decision engine combines three configured, bounded components:
+Risk combines deterministic evidence, behavioral deviation, campaign severity,
+and confidence. Guardrails reduce the action when evidence or confidence is
+weak. Reputation remains supporting evidence and cannot originate enforcement.
 
-1. deterministic gateway evidence;
-2. endpoint-baseline deviation; and
-3. campaign facts from correlation.
-
-Risk is a 0-100 value and confidence is an independent 0-1 value. The
-decision explanation records raw inputs, configured weights, weighted points,
-the selected action, and every guardrail that applied.
-
-No deterministic evidence normally results in `monitor`. Reputation does not
-count as deterministic evidence. An operator may explicitly enable the
-ready-baseline behavioural-throttle path: it is endpoint-scoped, can produce
-only an expiring throttle, requires a configured deviation beyond a completed
-trusted baseline, and never authorizes a block. This keeps the exception
-bounded while preserving observed gateway evidence as the default basis for
-automatic enforcement.
-
-## Modes and safety rails
-
-| Mode | Behaviour |
+| Mode | Effect |
 | --- | --- |
-| Monitor | Store recommendations only; never write an active gateway policy. |
-| Manual | Store pending recommendations for analyst approval, edit, or rejection. |
-| Automatic | Write only a throttle or temporary-block recommendation that passes every guardrail. |
+| Monitor | Store recommendation; write no active policy. |
+| Manual | Hold action for operator approval. |
+| Automatic | Write a guardrail-compliant expiring policy. |
 
-The writer is the sole path that can change gateway policy. It rejects unsafe
-addresses, policies without a TTL, decisions over the action/duration ceiling,
-and changes over the per-cycle budget. Allowlist rules have precedence;
-shared-address checks soften collateral-risky actions; a policy naturally
-expires instead of being renewed by repeated evidence.
+The dashboard exposes adaptive settings and recommendations. Its updates are
+read by the decision engine on a later cycle, so a dashboard action is never an
+immediate direct block.
 
-All tunable risk weights, score thresholds, baseline controls, policy TTLs,
-and throttle bounds are validated by `AdaptiveConfig` and may be supplied by
-the dashboard-backed configuration or `IASG_ADAPTIVE_CONFIG`.
+## Operator feedback
+
+Overrides arrive on `iasg_overrides`. Declared allowlists and shared ranges
+still apply. Repeated, consistent corrections can move an initial
+recommendation by at most one action rung; they cannot bypass evidence,
+confidence, address eligibility, or expiry rules.
