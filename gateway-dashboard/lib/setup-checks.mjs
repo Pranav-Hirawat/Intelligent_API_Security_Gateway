@@ -7,7 +7,7 @@
  *   private-sources   trusted_proxies does not name the proxy in front of the
  *                     gateway, so every request is attributed to that proxy.
  *                     Private addresses are exempt from blocking in both the
- *                     gateway and the control plane, so nothing is ever
+ *                     gateway and the decision engine, so nothing is ever
  *                     blocked.
  *   missing-routes    the route table does not describe the API, so ordinary
  *                     requests record as <unmatched> and ordinary clients
@@ -84,7 +84,7 @@ function privateSources(events) {
     title: "Most traffic comes from private addresses, which are never blocked",
     detail:
       `${Math.round(share * 100)}% of the last ${events.length} requests came from private addresses, ` +
-      "which the gateway and control plane never block. If clients reach the gateway through a proxy " +
+      "which the gateway and decision engine never block. If clients reach the gateway through a proxy " +
       "or load balancer, add its address to server.trusted_proxies in the gateway config and restart " +
       "the gateway. Expected if your clients really are on a private network, or you are testing from " +
       "this machine.",

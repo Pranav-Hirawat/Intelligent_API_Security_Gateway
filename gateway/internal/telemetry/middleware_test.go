@@ -79,7 +79,7 @@ func firedContains(ev Event, signal string) bool {
 
 // A request the enforcer answers never reaches the detectors. Telemetry must
 // then report no signals rather than the attack that got the address blocked:
-// the control plane turns every name in Fired into a fresh piece of evidence,
+// the decision engine turns every name in Fired into a fresh piece of evidence,
 // so replaying one would keep a campaign alive on traffic nobody inspected.
 func TestBlockedRequestReportsNoSignalsOfItsOwn(t *testing.T) {
 	const attacker = "203.0.113.7"

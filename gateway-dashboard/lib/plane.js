@@ -1,5 +1,5 @@
 /**
- * Readers for everything the control plane writes.
+ * Readers for everything the decision engine writes.
  *
  * /api/overview reads what the gateway saw; these read what the agent
  * concluded about it. They live here rather than inside one route because more
@@ -14,7 +14,7 @@ export const ALERT_STREAM = "iasg_alerts";
 
 // Written at the end of every cycle with a TTL of a few intervals, so its
 // absence means the agent stopped rather than that the network went quiet.
-// Reads the same variable the control plane does, or setting IASG_HEARTBEAT_KEY
+// Reads the same variable the decision engine does, or setting IASG_HEARTBEAT_KEY
 // on one side would leave the console permanently reporting a dead agent.
 export const HEARTBEAT_KEY = process.env.IASG_HEARTBEAT_KEY || "iasg:heartbeat";
 
@@ -23,7 +23,7 @@ const COUNTER_KEY = `${CAMPAIGN_PREFIX}next_id`;
 
 /**
  * SCAN rather than KEYS, which blocks the Redis server on a large keyspace.
- * Mirrors what the control plane's own store does.
+ * Mirrors what the decision engine's own store does.
  */
 export async function scanKeys(redis, match) {
   const found = [];
@@ -86,7 +86,7 @@ export async function readPolicies(redis) {
   const keys = await scanKeys(redis, `${POLICY_PREFIX}*`);
   if (keys.length === 0) return [];
 
-  // Values and their remaining life. Capped per cycle by the control plane,
+  // Values and their remaining life. Capped per cycle by the decision engine,
   // so this stays a small number of round trips.
   const [values, ttls] = await Promise.all([
     redis.mGet(keys),
@@ -111,7 +111,7 @@ export async function readPolicies(redis) {
         reason: decision.reason || "",
         source: decision.source || "agent",
         issuedAt: decision.issued_at || null,
-        issuedBy: decision.issued_by || "control-plane",
+        issuedBy: decision.issued_by || "decision-engine",
         mode: decision.mode || "automatic",
         baselineVersion: decision.baseline_version || "",
         configVersion: Number(decision.config_version || 0),

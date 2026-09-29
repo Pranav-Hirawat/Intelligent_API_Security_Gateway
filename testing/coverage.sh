@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # White-box coverage for all three code bases. Reports land in coverage/:
 #   coverage/gateway.html        line-by-line Go coverage (open in a browser)
-#   coverage/control-plane/      line-by-line Python coverage (index.html)
+#   coverage/decision-engine/      line-by-line Python coverage (index.html)
 #   coverage/summary.txt         per-package percentages for all three
 set -euo pipefail
 
@@ -23,12 +23,12 @@ echo "== Go gateway"
   } >>"$out/summary.txt"
 )
 
-echo "== Python control plane"
+echo "== Python decision engine"
 (
-  cd "$root/control-plane"
-  PYTHONPATH=. .venv/bin/python -m pytest -q --cov=iasg --cov-report=html:"$out/control-plane" \
-    --cov-report=term >"$out/control-plane.txt"
-  { echo; echo "== Python control plane (statements)"; grep -E "^(iasg/|TOTAL)" "$out/control-plane.txt"; } >>"$out/summary.txt"
+  cd "$root/decision-engine"
+  PYTHONPATH=. .venv/bin/python -m pytest -q --cov=iasg --cov-report=html:"$out/decision-engine" \
+    --cov-report=term >"$out/decision-engine.txt"
+  { echo; echo "== Python decision engine (statements)"; grep -E "^(iasg/|TOTAL)" "$out/decision-engine.txt"; } >>"$out/summary.txt"
 )
 
 echo "== Dashboard (logic modules with tests)"
@@ -47,4 +47,4 @@ echo "== Dashboard (logic modules with tests)"
 
 cat "$out/summary.txt"
 echo
-echo "Open $out/gateway.html and $out/control-plane/index.html"
+echo "Open $out/gateway.html and $out/decision-engine/index.html"

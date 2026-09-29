@@ -90,7 +90,7 @@ func TestChainStopsAtShortCircuit(t *testing.T) {
 }
 
 // Login failures are learned only after the backend replies. They are evidence
-// for the control plane, never a gateway reflex authority.
+// for the decision engine, never a gateway reflex authority.
 func TestBruteForceEvidenceNeverArmsTheGatewayReflex(t *testing.T) {
 	const attacker = "203.0.113.44"
 

@@ -62,7 +62,7 @@ nav:
       - Detection Signals: detection-signals.md
       - Policy Enforcement: policy-enforcement.md
       - Network-Level Blocking: network-level-blocking.md
-      - Control Plane: control-plane.md
+      - Decision Engine: decision-engine.md
   - Adaptive Control:
       - Adaptive Policy and Analyst Control: adaptive-policy.md
   - Modules:

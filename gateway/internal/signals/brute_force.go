@@ -246,7 +246,7 @@ func (d *BruteForceDetector) Metrics(ip string) Evidence {
 		}
 		// Count only accounts whose own failure streak reached the configured
 		// threshold. Otherwise one brute-force target plus a few ordinary typos
-		// could be mislabeled as password spraying by the control plane.
+		// could be mislabeled as password spraying by the decision engine.
 		if streak.target != "" && streak.consecutive >= tun.maxFailures {
 			distinctUsers++
 		}

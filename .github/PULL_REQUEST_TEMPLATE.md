@@ -8,7 +8,7 @@
 <!-- What you actually ran, and what it said. Tick only what you did. -->
 
 - [ ] `cd gateway && go test ./...`
-- [ ] `cd control-plane && .venv/bin/python -m pytest` (16 skip without Postgres)
+- [ ] `cd decision-engine && .venv/bin/python -m pytest` (16 skip without Postgres)
 - [ ] `cd gateway-dashboard && npm test`
 - [ ] `mkdocs build --strict`
 - [ ] Exercised the change in the running stack

@@ -21,7 +21,7 @@ if (target) {
 
 async function fresh() {
   await redis.flushDb();
-  // Groups the control plane creates once at startup and a reset must keep.
+  // Groups the decision engine creates once at startup and a reset must keep.
   for (const [stream, group] of [["iasg:events", "iasg-agent"], ["iasg_overrides", "iasg-overrides"]]) {
     await redis.xGroupCreate(stream, group, "0", { MKSTREAM: true });
     await redis.xAdd(stream, "*", { event: "{}" });
@@ -44,7 +44,7 @@ async function groups(stream) {
 async function schema() {
   const { getPool } = await import("../lib/postgres.js");
   const pool = getPool();
-  // The control plane owns the real schema; these are the tables the admin
+  // The decision engine owns the real schema; these are the tables the admin
   // routes empty, which is all they need to exist.
   for (const table of ["policy_audit", "policy_recommendations", "endpoint_baselines", "campaigns", "feedback"]) {
     await pool.query(`CREATE TABLE IF NOT EXISTS ${table} (id int)`);
@@ -200,10 +200,10 @@ test("the address view only shows that address", { skip }, async () => {
   assert.ok(!JSON.stringify(body).includes("203.0.113.50"), "another address's events leaked in");
 });
 
-// Before the control plane has ever run there is no campaign_id_seq. Resetting
+// Before the decision engine has ever run there is no campaign_id_seq. Resetting
 // it used to fail inside the transaction with the error swallowed, so COMMIT
 // became a rollback and the route reported rows cleared that were still there.
-test("a clear before the control plane ever ran really clears", {
+test("a clear before the decision engine ever ran really clears", {
   skip: skip || (pgUrl ? false : "set IASG_TEST_POSTGRES_URL"),
 }, async () => {
   await fresh();

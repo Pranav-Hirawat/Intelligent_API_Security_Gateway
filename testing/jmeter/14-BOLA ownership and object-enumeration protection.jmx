@@ -7,7 +7,7 @@ The backend&apos;s GET /api/orders/{id} returns ANY customer&apos;s order to any
 1. A normal shopper logs in and reopens only her own orders: every request must be 200.
 2. An attacker logs in with the same kind of account and walks order ids 1..ORDER_IDS.
    Through the gateway, no other customer&apos;s order may come back (404 instead); a forged token must be 401.
-   After POLICY_WAIT_MS the control plane&apos;s campaign policy must enforce either a throttle (429s) or a temporary block (403s).
+   After POLICY_WAIT_MS the decision engine&apos;s campaign policy must enforce either a throttle (429s) or a temporary block (403s).
 3. The same walk straight to the backend shows the bug is still in the app (other customers&apos; orders return 200).
 Thread groups run one after another. Use a fresh ATTACKER_IP for each run.</stringProp>
       <boolProp name="TestPlan.serialize_threadgroups">true</boolProp>
@@ -558,7 +558,7 @@ if (prev.getResponseCode() != &apos;401&apos;) {
           </JSR223Assertion>
           <hashTree/>
         </hashTree>
-        <TestAction guiclass="TestActionGui" testclass="TestAction" testname="Wait for the control-plane cycle and the gateway policy refresh" enabled="true">
+        <TestAction guiclass="TestActionGui" testclass="TestAction" testname="Wait for the decision-engine cycle and the gateway policy refresh" enabled="true">
           <intProp name="ActionProcessor.action">1</intProp>
           <intProp name="ActionProcessor.target">0</intProp>
           <stringProp name="ActionProcessor.duration">${POLICY_WAIT_MS}</stringProp>
@@ -590,7 +590,7 @@ if (prev.getResponseCode() != &apos;401&apos;) {
 def key = prev.getResponseCode() == &apos;429&apos; ? &apos;th_429&apos; : (prev.getResponseCode() == &apos;403&apos; ? &apos;th_403&apos; : (prev.getResponseCode() == &apos;200&apos; ? &apos;th_200&apos; : &apos;th_other&apos;))
 vars.put(key, String.valueOf(((vars.get(key) ?: &apos;0&apos;) as int) + 1))
 // Either policy action proves the same contract: a prior decision now acts
-// without asking the control plane on this request.
+// without asking the decision engine on this request.
 prev.setSuccessful(prev.getResponseCode() in [&apos;200&apos;, &apos;403&apos;, &apos;429&apos;])
 </stringProp>
               <stringProp name="parameters"></stringProp>
@@ -600,7 +600,7 @@ prev.setSuccessful(prev.getResponseCode() in [&apos;200&apos;, &apos;403&apos;, 
             <hashTree/>
           </hashTree>
         </hashTree>
-        <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="Policy result: control-plane decision enforced" enabled="true">
+        <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="Policy result: decision-engine decision enforced" enabled="true">
           <stringProp name="scriptLanguage">groovy</stringProp>
           <stringProp name="script">
 int ok = (vars.get(&apos;th_200&apos;) ?: &apos;0&apos;) as int

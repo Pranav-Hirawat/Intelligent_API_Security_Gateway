@@ -43,9 +43,9 @@ While its policy wait is running, show the dashboard in this order:
 3. **Policy** — show the active, expiring decisions.
 4. **JMeter Summary Report** — show the final `403` assertions.
 
-The key message is: detectors create evidence during a request; the control
-plane decides later; the gateway enforces the cached decision without waiting
-for the control plane or a model.
+The key message is: detectors create evidence during a request; the decision
+engine decides later; the gateway enforces the cached decision without waiting
+for the decision engine or a model.
 
 ## Other maintained plans
 
@@ -60,7 +60,7 @@ the reset, settings, and expected-response prerequisites.
 | `5-Enumeration and path-traversal detection.jmx` | Bounded traversal/enumeration evidence and the reflex response. |
 | `6-Unknown-route scanning.jmx` | Advisory unknown-route evidence and correlation. |
 | `7-Immediate gateway reflex for API flooding.jmx`; `8-Gateway reflex allowlist and exemption settings.jmx` | Flood reflex and its exemption setting. |
-| `9-Control-plane campaign correlation.jmx` | Three-IP reconnaissance correlation. |
+| `9-Decision-engine campaign correlation.jmx` | Three-IP reconnaissance correlation. |
 | `10-Monitor manual and automatic modes.jmx`; `11-Policy enforcement monitor throttle temporary block escalate.jmx` | Operator modes, approval, and policy outcomes. |
 | `12-Adaptive rate limiting without attack signature.jmx` | A valid-traffic adaptive throttle; it requires the documented adaptive settings. |
 | `14-BOLA ownership and object-enumeration protection.jmx` | BOLA ownership protection, object enumeration, and direct-backend comparison. |

@@ -18,7 +18,7 @@ use every control on it:
 | Route | File | Shows |
 | --- | --- | --- |
 | `/` | `app/(console)/page.jsx` | Overview: live traffic, stats, attack map, and setup warnings (below) |
-| `/campaigns` | `app/(console)/campaigns/page.jsx` | Campaigns the control plane has formed |
+| `/campaigns` | `app/(console)/campaigns/page.jsx` | Campaigns the decision engine has formed |
 | `/events` | `app/(console)/events/page.jsx` | The raw `iasg:events` stream |
 | `/policy` | `app/(console)/policy/page.jsx` | Active `policy:<ip>` keys, and overrides |
 | `/history` | `app/(console)/history/page.jsx` | Durable campaign history from Postgres |
@@ -60,7 +60,7 @@ use every control on it:
 | `lib/redis.js` | Redis client |
 | `lib/postgres.js` | Postgres pool |
 | `lib/telemetry.js` | Reads the event stream and stats |
-| `lib/plane.js` | Readers for what the control plane concluded — campaigns, policies, feedback — shared by the campaigns feed and the per-address investigation view |
+| `lib/plane.js` | Readers for what the decision engine concluded — campaigns, policies, feedback — shared by the campaigns feed and the per-address investigation view |
 | `lib/adaptive.js` | Validates a proposed adaptive configuration and a recommendation edit against the live guardrails |
 | `lib/setup-checks.mjs` | The Overview's setup warnings, computed from recent events |
 | `app/ui/setup-warnings.jsx` | Renders them; dismissal is per browser |
@@ -81,7 +81,7 @@ naming what it saw:
 
 | Warning | Shown when | Usually means |
 | --- | --- | --- |
-| Most traffic comes from private addresses | At least 30 requests, 90% or more from private addresses | `server.trusted_proxies` does not list the proxy in front of the gateway, so every request is attributed to it. The gateway and the control plane never block private addresses. |
+| Most traffic comes from private addresses | At least 30 requests, 90% or more from private addresses | `server.trusted_proxies` does not list the proxy in front of the gateway, so every request is attributed to it. The gateway and the decision engine never block private addresses. |
 | Endpoints missing from the route table | An unmatched endpoint called by at least 2 clients, at least 5 times, and at least twice per client | `routes.templates` does not describe the API, so its own clients count toward unknown-route scanning. |
 
 Both are heuristics, so each warning says when it is expected: an API whose
@@ -129,7 +129,7 @@ gateway is doing to live traffic.
 ## Overrides
 
 An operator's instruction is written to the `iasg_overrides` stream and read by
-the control plane **before** it decides anything, so a human does not have to
+the decision engine **before** it decides anything, so a human does not have to
 wait for the agent to notice a campaign first.
 
 Overrides still pass through the same simulation and safety checks as the

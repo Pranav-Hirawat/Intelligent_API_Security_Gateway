@@ -20,7 +20,7 @@ the runtime in this order:
 5. The gateway reflex and policy enforcer, via `newEnforcer`
 6. The chain, via `ChainMiddleware`, wrapped around the reverse proxy
 
-`enforcement.policy.enabled` controls whether control-plane policies are
+`enforcement.policy.enabled` controls whether decision-engine policies are
 consulted; the gateway reflex and opt-in baseline are independent. Policy
 lookup uses a local snapshot. An applicable rate uses one bounded atomic Redis
 quota check per request and fails open on Redis errors. See

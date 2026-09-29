@@ -3,7 +3,7 @@
 A Go reverse proxy that sits in front of the backend API. It enforces cached decisions,
 records detection evidence, and forwards admitted requests with minimal overhead.
 
-It never calls the control plane, PostgreSQL, or a model on the request path. Policy
+It never calls the decision engine, PostgreSQL, or a model on the request path. Policy
 lookup is local; active rate limits use a short, bounded Redis quota check shared by
 all gateway replicas.
 
@@ -50,7 +50,7 @@ Reputation is the odd one out, and deliberately so. The other five are behaviour
 windowed: they count requests, failures or pattern matches, and cannot say anything until
 the attacker has repeated themselves -- a flood needs a hundred requests before it exists.
 Reputation is a standing fact about an address, so it is the only one that *knows* on the
-first request, and the only evidence the control plane can receive about an address that
+first request, and the only evidence the decision engine can receive about an address that
 has done nothing yet. Enforcement still lands on the request after, because the reflex
 observes after the handler rather than deciding in front of it -- see
 `internal/enforcement/middleware.go`. It pays for its head start by firing on a
@@ -59,7 +59,7 @@ would drown the real attack in the event stream. Inside the cooldown it still sc
 just does not fire again.
 
 Each one emits `Evidence` onto `iasg:events`. They score and report; they do not decide
-what to do about it. That is the control plane's job, and keeping it there is what lets
+what to do about it. That is the decision engine's job, and keeping it there is what lets
 the detectors stay fast.
 
 ## Running it
@@ -83,7 +83,7 @@ Environment overrides, used by Compose:
 
 ## Enforcement
 
-The control plane writes `policy:<ip>` keys with a TTL. Background snapshots preserve
+The decision engine writes `policy:<ip>` keys with a TTL. Background snapshots preserve
 the actual Redis expiry and expire locally on every lookup. Rate limits use atomic
 Redis token buckets per client IP, exact URL path, and HTTP method. A quota check fails
 open on Redis errors, with a configurable timeout and failure backoff.
@@ -115,7 +115,7 @@ been removed rather than left advertising a component that does not exist.
 
 Every decision is made by the parts that already hold the evidence: each detector scores
 what it sees, [`internal/enforcement`](internal/enforcement/) acts on a threshold cross
-immediately, and the control plane re-decides off-path with the wider view.
+immediately, and the decision engine re-decides off-path with the wider view.
 
 ## Documentation
 

@@ -1,13 +1,13 @@
 # Adaptive policy and analyst control
 
-The adaptive system runs in the Python control plane after a completed
+The adaptive system runs in the Python decision engine after a completed
 60-second window. The Go gateway never waits for this work: it refreshes an
 expiring policy snapshot in the background and performs an in-memory lookup on
 the request path.
 
 ## Baselines
 
-The control plane learns a separate normal request rate for every normalized
+The decision engine learns a separate normal request rate for every normalized
 HTTP method and route template. It uses a bounded rolling sample and derives a
 threshold with `median + mad_multiplier * max(MAD, minimum_mad)`. Warm-up,
 hard limits, hysteresis, and cooldown prevent one unusual minute from changing
@@ -20,7 +20,7 @@ active policy.
 
 ## Risk and confidence
 
-The control plane combines three configured, bounded components:
+The decision engine combines three configured, bounded components:
 
 1. deterministic gateway evidence;
 2. endpoint-baseline deviation; and

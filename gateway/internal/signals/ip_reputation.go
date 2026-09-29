@@ -11,7 +11,7 @@
 		would write one Evidence per request, which does two bad things: it
 		swamps the correlation agent's dominant-detector count so a real attack
 		is described as "reputation", and it multiplies volume on a stream the
-		control plane already drains slower than a flood fills it.
+		decision engine already drains slower than a flood fills it.
 
 		So the address is scored every time -- its risk is a standing fact --
 		but it only *fires* once per cooldown. This is the same split SQLi
@@ -162,7 +162,7 @@ func (d *ReputationDetector) Metrics(ip string) Evidence {
 
 // MetricsFor answers for one request, so only the request that actually fired
 // reports a threshold cross. Without this every request from a listed address
-// would look like a fresh hit to the control plane for a whole cooldown.
+// would look like a fresh hit to the decision engine for a whole cooldown.
 func (d *ReputationDetector) MetricsFor(ip, requestID string) Evidence {
 	tun := d.settings()
 	ev := d.baseEvidence(ip, tun)

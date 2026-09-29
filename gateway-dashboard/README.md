@@ -26,9 +26,9 @@ signal opens the events that fired it, and a metric tile opens the page behind i
 | Source | Written by | Shows as |
 |---|---|---|
 | `iasg:stats`, `iasg:events`, `iasg:attackers` | Go gateway | Metrics, map, signals, event stream |
-| `campaign:*`, `policy:*`, `feedback:*`, `iasg_alerts` | Control plane | Campaigns, policy, escalations, learning |
-| `iasg:heartbeat` | Control plane | Whether the agent is alive |
-| `campaigns` table (Postgres) | Control plane | History that survives a restart |
+| `campaign:*`, `policy:*`, `feedback:*`, `iasg_alerts` | Decision engine | Campaigns, policy, escalations, learning |
+| `iasg:heartbeat` | Decision engine | Whether the agent is alive |
+| `campaigns` table (Postgres) | Decision engine | History that survives a restart |
 | `iasg_overrides` | **This console** | Instructions to the agent |
 
 The gateway's counters only exist while the gateway is running. When they are absent —
@@ -53,14 +53,14 @@ back; the comment at the top of `lib/auth.js` says what to restore.
 ## Writing is instructing, not enforcing
 
 Nothing here writes a policy key. Every action appends to `iasg_overrides`, and the
-control plane applies it on its next cycle **after** the same allowlist and collateral
+decision engine applies it on its next cycle **after** the same allowlist and collateral
 checks its own decisions face. Two consequences worth knowing:
 
 - The toast says *"applies next cycle"* because that is true, and the UI should not imply
   an address is already blocked.
 - `monitor` stops future enforcement rather than clearing a block that is already
-  standing; that expires on its own TTL. There is no release button, because the control
-  plane has no release operation.
+  standing; that expires on its own TTL. There is no release button, because the decision
+  engine has no release operation.
 
 The actor recorded against an override comes from the session, never from the request
 body — an actor the caller can choose is not an audit trail.
@@ -89,7 +89,7 @@ Under Compose both are set for you:
 docker compose -f infra/docker-compose.yml up -d gateway_dashboard
 ```
 
-For traffic to look at: `bash testing/signals/run_all.sh`, or seed the control plane
+For traffic to look at: `bash testing/signals/run_all.sh`, or seed the decision engine
 directly with `python -m tools.seed_evidence --scenario mixed`.
 
 ## Layout

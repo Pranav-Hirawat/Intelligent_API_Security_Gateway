@@ -10,7 +10,7 @@ Four things run, and they are deliberately independent:
 | Directory | What it is | Language |
 |---|---|---|
 | `gateway/` | The data plane. Handles every request, must stay fast. | Go |
-| `control-plane/` | The agent. Correlates evidence, decides policy. Never touches a live request. | Python |
+| `decision-engine/` | The agent. Correlates evidence, decides policy. Never touches a live request. | Python |
 | `gateway-dashboard/` | The operations console. | Next.js |
 | `desktop/` | Electron launcher that runs the packaged stack. | JavaScript |
 
@@ -34,8 +34,8 @@ Run whatever covers the part you touched. All of it, if you are unsure:
 # Go gateway
 cd gateway && go test ./...
 
-# Python control plane  (16 tests skip without Postgres, which is expected)
-cd control-plane && .venv/bin/python -m pytest
+# Python decision engine  (16 tests skip without Postgres, which is expected)
+cd decision-engine && .venv/bin/python -m pytest
 
 # Dashboard
 cd gateway-dashboard && npm test

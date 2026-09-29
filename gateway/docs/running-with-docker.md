@@ -27,7 +27,7 @@ containers. Several minutes of apparent silence is normal.
 | Postgres (gateway) | `localhost:5434` | Campaigns, feedback, dashboard users |
 | Postgres (vuln API) | `localhost:5435` | Backend's own data |
 | Redis | `localhost:6379` | Evidence, policy, overrides |
-| Control plane | — | No HTTP port; it is a worker |
+| Decision engine | — | No HTTP port; it is a worker |
 
 The `ports_info` service prints this map on every `up`.
 
@@ -40,7 +40,7 @@ override them; Compose reads it automatically.
 ## Schema and first run
 
 Nothing needs migrating. `campaigns` and `feedback` are created with `CREATE
-TABLE IF NOT EXISTS` at startup by the control plane. A fresh volume is a
+TABLE IF NOT EXISTS` at startup by the decision engine. A fresh volume is a
 working system.
 
 The console has no accounts and no login. Whoever can reach port 5177 is
@@ -109,8 +109,8 @@ docker compose -f infra/docker-compose.yml logs gateway | grep "BRUTE FORCE"
 redis-cli HGETALL iasg:stats
 redis-cli XLEN iasg:events
 
-# 4. The control plane turned it into a campaign
-docker compose -f infra/docker-compose.yml logs control_plane | tail
+# 4. The decision engine turned it into a campaign
+docker compose -f infra/docker-compose.yml logs decision_engine | tail
 docker compose -f infra/docker-compose.yml exec postgres \
   psql -U iasg_user -d iasg -c 'SELECT campaign_id, type, severity, event_count FROM campaigns;'
 ```
@@ -119,7 +119,7 @@ docker compose -f infra/docker-compose.yml exec postgres \
 
 ```bash
 # Restart one service after a config change
-docker compose -f infra/docker-compose.yml up -d --force-recreate control_plane
+docker compose -f infra/docker-compose.yml up -d --force-recreate decision_engine
 
 # Throw away all state, including databases
 docker compose -f infra/docker-compose.yml down -v

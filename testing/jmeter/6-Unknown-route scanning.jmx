@@ -4,7 +4,7 @@
     <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="IASG Unknown Route Scanning Detection">
       <stringProp name="TestPlan.comments">Step 6 - Unknown-route scanning.
 
-One documentation IP requests 12 distinct paths that are not in the gateway route table, without a timer. The default detector threshold is 8 distinct unmatched paths in 5 minutes. Requests 8 through 12 therefore produce unknown-route-scanning evidence; the additional requests give the control plane enough evidence to build a solo Reconnaissance campaign.
+One documentation IP requests 12 distinct paths that are not in the gateway route table, without a timer. The default detector threshold is 8 distinct unmatched paths in 5 minutes. Requests 8 through 12 therefore produce unknown-route-scanning evidence; the additional requests give the decision engine enough evidence to build a solo Reconnaissance campaign.
 
 Every probe is expected to reach the backend and return 404. The route scanner is advisory-only: it never makes a gateway reflex block. The path /.env is intentionally included as a common scanner guess; it can also produce enumeration evidence, which is valid additional dashboard evidence.</stringProp>
       <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables">
@@ -345,7 +345,7 @@ Every probe is expected to reach the backend and return 404. The route scanner i
           </JSR223Assertion>
           <hashTree/>
         </hashTree>
-        <TestAction guiclass="TestActionGui" testclass="TestAction" testname="Wait for control-plane correlation" enabled="true">
+        <TestAction guiclass="TestActionGui" testclass="TestAction" testname="Wait for decision-engine correlation" enabled="true">
           <intProp name="ActionProcessor.action">1</intProp>
           <intProp name="ActionProcessor.target">0</intProp>
           <stringProp name="ActionProcessor.duration">${POLICY_WAIT_MS}</stringProp>

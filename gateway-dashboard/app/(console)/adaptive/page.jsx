@@ -491,8 +491,8 @@ export default function AdaptivePage() {
             </h2>
             <p>
               {confirming === "apply"
-                ? "This stores a console override. The control plane applies it on its next cycle."
-                : "This removes the console override and restores the control plane's boot/file configuration on its next cycle."}
+                ? "This stores a console override. The decision engine applies it on its next cycle."
+                : "This removes the console override and restores the decision engine's boot/file configuration on its next cycle."}
             </p>
             <label className="modal-label">
               Type <b>{confirming}</b> to confirm
@@ -535,7 +535,7 @@ export default function AdaptivePage() {
             <p className="eyebrow">Saved</p>
             <h2 id="adaptive-settings-saved-title">Settings saved</h2>
             <p>
-              Adaptive configuration v{savedConfig.version} is now stored. The control plane uses it
+              Adaptive configuration v{savedConfig.version} is now stored. The decision engine uses it
               on its next cycle.
             </p>
             <div className="modal-actions">

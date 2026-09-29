@@ -70,7 +70,7 @@ type recorded struct {
 }
 
 // Guard is both the enforcing middleware and the detector that reports what it
-// refused, so telemetry and the control plane see every blocked read.
+// refused, so telemetry and the decision engine see every blocked read.
 type Guard struct {
 	tun      atomic.Pointer[tunables]
 	verifier *identity.Verifier

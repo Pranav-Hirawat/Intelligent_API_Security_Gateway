@@ -2,7 +2,7 @@
 <jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
   <hashTree>
     <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="3A - Automated brute-force detection and enforcement">
-      <stringProp name="TestPlan.comments">Runs in order: preflight, 14 failed logins from one documentation-range identity, one control-plane wait, then one synchronized 30-request follow-up burst. It never changes settings, deletes policies, or clears history. It sends attack traffic when run.</stringProp>
+      <stringProp name="TestPlan.comments">Runs in order: preflight, 14 failed logins from one documentation-range identity, one decision-engine wait, then one synchronized 30-request follow-up burst. It never changes settings, deletes policies, or clears history. It sends attack traffic when run.</stringProp>
       <boolProp name="TestPlan.serialize_threadgroups">true</boolProp>
       <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="Variables">
         <collectionProp name="Arguments.arguments">
@@ -214,7 +214,7 @@ if (prev.getResponseCode() == &apos;401&apos;) {
         </elementProp>
       </ThreadGroup>
       <hashTree>
-        <TestAction guiclass="TestActionGui" testclass="TestAction" testname="Wait for control plane and gateway refresh" enabled="true">
+        <TestAction guiclass="TestActionGui" testclass="TestAction" testname="Wait for decision engine and gateway refresh" enabled="true">
           <intProp name="ActionProcessor.action">0</intProp>
           <intProp name="ActionProcessor.target">0</intProp>
           <stringProp name="ActionProcessor.duration">${POLICY_WAIT_MS}</stringProp>

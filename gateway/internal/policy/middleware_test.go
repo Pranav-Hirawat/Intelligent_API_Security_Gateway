@@ -78,7 +78,7 @@ func TestMonitorDoesNotBlock(t *testing.T) {
 	}
 }
 
-// A typo or a newer action from the control plane must not take the API down.
+// A typo or a newer action from the decision engine must not take the API down.
 func TestUnrecognisedActionFailsOpen(t *testing.T) {
 	e := NewEnforcer(fakeLookup{
 		"203.0.113.5": {Action: "quarantine_forever"},
@@ -157,16 +157,16 @@ func TestBlockResponseLeaksNothing(t *testing.T) {
 	}
 }
 
-// The control plane writes this exact shape; if the contract drifts, this
+// The decision engine writes this exact shape; if the contract drifts, this
 // breaks before production does.
-func TestDecisionParsesControlPlaneJSON(t *testing.T) {
+func TestDecisionParsesDecisionEngineJSON(t *testing.T) {
 	raw := `{"action": "escalate", "campaign_id": "2", "confidence": 1.0,` +
 		` "reason": "Credential Stuffing (campaign 2), confidence 1.00, severity high",` +
 		` "issued_at": "2026-08-12T06:30:30.270057+00:00", "expires_in": 1800}`
 
 	var d Decision
 	if err := json.Unmarshal([]byte(raw), &d); err != nil {
-		t.Fatalf("cannot parse control-plane policy: %v", err)
+		t.Fatalf("cannot parse decision-engine policy: %v", err)
 	}
 
 	if d.Action != ActionEscalate {

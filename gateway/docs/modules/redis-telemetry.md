@@ -20,13 +20,13 @@ Redis is a **capped live window**, not an archive of every request forever.
 `iasg:events` is written when a request **finishes**. `iasg:arrivals` is written
 when it **starts**. They are separate streams rather than one stream with a
 `kind` field, because the console, the `iasg:stats` and `iasg:attackers`
-counters and the control plane's Evidence consumer all read `iasg:events` — and
+counters and the decision engine's Evidence consumer all read `iasg:events` — and
 none of them should have to learn to skip half of it.
 
 | Consumer | Reads | Must not read |
 | --- | --- | --- |
 | Console / dashboard | `iasg:events` | — |
-| Control plane (`iasg-agent`) | `iasg:events` | — |
+| Decision engine (`iasg-agent`) | `iasg:events` | — |
 **Why arrivals exist at all.** Adaptive baseline windowing keys on
 arrival time. A request that arrives at 12:00:59 and finishes at 12:01:02
 belongs to the 12:00 window; with completion records alone it would be counted
@@ -78,11 +78,11 @@ Event payload (field `event` on the stream):
 
 Passwords and token-like JSON fields are redacted. Bodies are truncated to 512 bytes. `decision` is `allow` unless the optional policy enforcer applied `throttle`, `temp_block`, or `escalate`. `riskScore` is the sum of detector `Metrics()` scores.
 
-The Python control plane consumes this same stream (`IASG_EVIDENCE_STREAM=iasg:events`). Clean requests are ignored; each fired signal becomes one Evidence record. Policy keys are written separately as `policy:<ip>` and do not collide with `iasg:*`.
+The Python decision engine consumes this same stream (`IASG_EVIDENCE_STREAM=iasg:events`). Clean requests are ignored; each fired signal becomes one Evidence record. Policy keys are written separately as `policy:<ip>` and do not collide with `iasg:*`.
 
 Reset the streams with `POST /api/admin/reset` (`{"confirm":"reset"}`), never
 `DEL` — `DEL` on a stream takes its consumer groups with it, and every later
-cycle then fails `NOGROUP` until the control plane restarts. That endpoint uses
+cycle then fails `NOGROUP` until the decision engine restarts. That endpoint uses
 `XTRIM MAXLEN 0` for exactly this reason, and deliberately spares `policy:*`:
 clearing history and lifting live blocks are different actions.
 

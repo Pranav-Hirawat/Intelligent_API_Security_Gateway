@@ -12,7 +12,7 @@ part of creating this folder.
 2. Use a clean policy state for the documentation IPs named in the plan's
    comments. Resetting dashboard history does **not** remove `policy:*` keys.
 3. Open one `.jmx` plan in JMeter and run it once. Each plan waits 50 seconds
-   for the control-plane cycle and policy snapshot refresh.
+   for the decision-engine cycle and policy snapshot refresh.
 4. Read the plan's final `RESULT` sampler and verify the Events, Campaigns,
    Policies, and (for escalation) Alerts dashboard views.
 

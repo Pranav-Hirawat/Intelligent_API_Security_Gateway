@@ -98,10 +98,10 @@ produces no arrival and no completion, which has three consequences:
    address simply stops existing for the minute.
 
 2. **A blocked window becomes indistinguishable from a quiet one.** Silence is
-   what an idle user looks like, so the control plane cannot learn whether the
+   what an idle user looks like, so the decision engine cannot learn whether the
    traffic stopped because of enforcement or because the client left.
 
-3. **The campaign stops being re-scored.** The control plane reasons over the
+3. **The campaign stops being re-scored.** The decision engine reasons over the
    evidence stream. Cut the evidence and a campaign freezes at whatever it last
    believed, so the block's expiry becomes the only thing that can end it —
    there is no longer any input that could argue for releasing it early.
@@ -165,7 +165,7 @@ rather than by attacks in general.
 | Client attribution | `internal/netutil/ip.go` — `Resolver.Resolve`, `ClientIP` |
 | Chain order | `internal/proxy/server.go` |
 | In-memory reflex blocks | `internal/enforcement/reflex.go` |
-| Policy safety rails | `control-plane/iasg/policy/writer.py` — `PolicyWriter.write` |
+| Policy safety rails | `decision-engine/iasg/policy/writer.py` — `PolicyWriter.write` |
 
 ## Related
 

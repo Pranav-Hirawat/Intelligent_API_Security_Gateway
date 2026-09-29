@@ -4,7 +4,7 @@
 
 Seven detectors run on every allowed request. **Detectors never enforce.** They
 observe, fill in a standard `Evidence` struct, and let the request continue.
-Deciding what to do about what they saw is the control plane's job, and acting
+Deciding what to do about what they saw is the decision engine's job, and acting
 on that decision is the enforcer's.
 
 That separation is what makes the gateway safe to leave switched on: a
@@ -87,7 +87,7 @@ Evidence: `owner_mismatch` and `forged_token` cross the threshold at score 80,
 `unverifiable` and a missing token score 0. It sits innermost, wrapping the
 proxy, so the `404`s it writes are what `object_enumeration` counts as refused
 lookups. It is advisory-only for the reflex -- each read is already refused --
-and the control plane names the campaign "Unauthorized Object Access (BOLA)".
+and the decision engine names the campaign "Unauthorized Object Access (BOLA)".
 
 What it cannot do: check a write. `PUT` or `DELETE /orders/17` has happened by
 the time a response exists, so only `GET` rules are accepted, and writes still
@@ -96,7 +96,7 @@ owner cannot be protected this way either.
 
 Brute force, route scanning and object enumeration are advisory-only: the gateway reflex rejects them even if they
 are named in `block.signals`. They become an expiring throttle or block only
-after control-plane correlation and the policy writer's safety checks.
+after decision-engine correlation and the policy writer's safety checks.
 
 ### Reputation is the odd one out
 
@@ -111,7 +111,7 @@ address that has done nothing yet.
 
 It pays for that head start with a **cooldown**. A listed address is listed on
 *every* request it makes, so firing each time would write one `Evidence` per
-request: that swamps the control plane's dominant-detector count until a real
+request: that swamps the decision engine's dominant-detector count until a real
 attack is described as "reputation", and multiplies volume on a stream that is
 already drained slower than a flood fills it. Inside the cooldown the address
 still scores — being listed is not an event that happens, it is a thing that is
@@ -133,7 +133,7 @@ whether it may act at all.
 ## Evidence
 
 Every detector answers `Metrics(ip)` with the same shape, so the collector and
-the control plane can treat them uniformly:
+the decision engine can treat them uniformly:
 
 | Field | Meaning |
 | --- | --- |
@@ -171,7 +171,7 @@ They store their result against the request ID that produced it, and telemetry
 asks for evidence belonging to the request it is recording. Without this, a
 blocked address could send one harmless request and have the gateway attach the
 *previous* request's injection evidence to it — manufacturing fresh evidence
-out of nothing, which the control plane would then ingest as a live attack.
+out of nothing, which the decision engine would then ingest as a live attack.
 
 `internal/signals/last_evidence.go` holds these results under a five-minute
 TTL, keyed by IP and request ID; a mismatch returns empty evidence rather than

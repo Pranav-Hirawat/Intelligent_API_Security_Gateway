@@ -242,7 +242,7 @@ func TestRecommendedSignalsExcludeAdvisoryDetectors(t *testing.T) {
 
 	r.Observe("203.0.113.32", snap(signals.SignalBruteForce, 100, true))
 	if _, found := r.Lookup("203.0.113.32"); found {
-		t.Error("consecutive login failures bypassed the control-plane policy writer")
+		t.Error("consecutive login failures bypassed the decision-engine policy writer")
 	}
 }
 

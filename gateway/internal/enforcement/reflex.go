@@ -1,7 +1,7 @@
 // Package enforcement gives the gateway a reflex.
 //
-// Policy enforcement -- internal/policy -- acts on decisions the Python control
-// plane has reasoned about. That is the right place for anything involving
+// Policy enforcement -- internal/policy -- acts on decisions the Python decision
+// engine has reasoned about. That is the right place for anything involving
 // judgement, but it is not fast: a decision takes up to one agent cycle (30s)
 // plus one snapshot refresh (5s) to reach the gateway. A flood is finished by
 // then.
@@ -21,7 +21,7 @@
 //   - Addresses that cannot meaningfully be blocked are exempt, and loopback
 //     and private ranges are exempt by default.
 //
-// The control plane still owns correlation, campaigns and escalation. When it
+// The decision engine still owns correlation, campaigns and escalation. When it
 // reaches a decision about an address, that decision wins -- see the ordering
 // in policy.Chain.
 package enforcement
@@ -49,7 +49,7 @@ import (
 // to contain a suspicious string. The request-scoped detectors are absent on
 // purpose -- a single request
 // carrying "UNION" may be an attack or may be someone searching a catalogue,
-// and that is a judgement, which is the control plane's job.
+// and that is a judgement, which is the decision engine's job.
 //
 // It is a recommendation and not a default. Nothing applies it automatically;
 // see New.
@@ -59,7 +59,7 @@ var RecommendedSignals = []string{signals.SignalFlood}
 //
 // The documentation ranges of RFC 5737 are deliberately absent: they can never
 // belong to a real host, so they are safe to block, and the demo drives
-// traffic from them. This mirrors the control plane's own rule in
+// traffic from them. This mirrors the decision engine's own rule in
 // policy/writer.py.
 var DefaultExempt = []string{
 	"127.0.0.0/8",
@@ -154,7 +154,7 @@ func buildTunables(cfg Config) (*reflexTunables, error) {
 	for _, name := range cfg.Signals {
 		if name = strings.TrimSpace(name); name != "" {
 			if signals.AdvisoryOnly(name) {
-				return nil, fmt.Errorf("%s is advisory-only and must be enforced through the control-plane policy writer", name)
+				return nil, fmt.Errorf("%s is advisory-only and must be enforced through the decision-engine policy writer", name)
 			}
 			t.signals[name] = true
 		}

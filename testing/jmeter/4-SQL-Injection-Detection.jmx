@@ -6,7 +6,7 @@
 
 PART A compares unsafe SQL construction and parameterized SQL with identical input.
 PART B has three concurrent, independent attacker identities create nine SQLi evidence events.
-PART C automatically waits for the control plane and gateway policy snapshot refresh.
+PART C automatically waits for the decision engine and gateway policy snapshot refresh.
 PART D verifies that each generated temporary block is enforced as HTTP 403.
 
 Thread groups are deliberately not serialized by the Test Plan. Run-specific JSR223 gates provide the required A -&gt; B -&gt; C -&gt; D ordering while the three Part B attackers remain concurrent.</stringProp>
@@ -524,7 +524,7 @@ if (props.get(&apos;iasg.sqli.partC.done&apos;) != run) { SampleResult.setSucces
             <collectionProp name="Asserion.test_strings">
               <stringProp name="51511">403</stringProp>
             </collectionProp>
-            <stringProp name="Assertion.custom_message">.71 was not blocked. Check the Part B evidence, control-plane cycle, policy mode, and policy TTL.</stringProp>
+            <stringProp name="Assertion.custom_message">.71 was not blocked. Check the Part B evidence, decision-engine cycle, policy mode, and policy TTL.</stringProp>
             <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
             <boolProp name="Assertion.assume_success">false</boolProp>
             <intProp name="Assertion.test_type">8</intProp>
@@ -594,7 +594,7 @@ if (props.get(&apos;iasg.sqli.partC.done&apos;) != run) { SampleResult.setSucces
             <collectionProp name="Asserion.test_strings">
               <stringProp name="51511">403</stringProp>
             </collectionProp>
-            <stringProp name="Assertion.custom_message">.72 was not blocked. Check the Part B evidence, control-plane cycle, policy mode, and policy TTL.</stringProp>
+            <stringProp name="Assertion.custom_message">.72 was not blocked. Check the Part B evidence, decision-engine cycle, policy mode, and policy TTL.</stringProp>
             <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
             <boolProp name="Assertion.assume_success">false</boolProp>
             <intProp name="Assertion.test_type">8</intProp>
@@ -664,7 +664,7 @@ if (props.get(&apos;iasg.sqli.partC.done&apos;) != run) { SampleResult.setSucces
             <collectionProp name="Asserion.test_strings">
               <stringProp name="51511">403</stringProp>
             </collectionProp>
-            <stringProp name="Assertion.custom_message">.73 was not blocked. Check the Part B evidence, control-plane cycle, policy mode, and policy TTL.</stringProp>
+            <stringProp name="Assertion.custom_message">.73 was not blocked. Check the Part B evidence, decision-engine cycle, policy mode, and policy TTL.</stringProp>
             <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
             <boolProp name="Assertion.assume_success">false</boolProp>
             <intProp name="Assertion.test_type">8</intProp>

@@ -1,8 +1,8 @@
-# Only control-plane/Dockerfile builds from the repo root; send just what it needs.
+# Only decision-engine/Dockerfile builds from the repo root; send just what it needs.
 *
-!control-plane
+!decision-engine
 **/.venv
 **/__pycache__
 **/*.egg-info
 **/.pytest_cache
-control-plane/models
+decision-engine/models

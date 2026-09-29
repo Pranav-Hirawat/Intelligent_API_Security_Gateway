@@ -1623,7 +1623,7 @@ tbody tr:hover td {
   .world-map-pulse { animation: none; opacity: 0; }
 }
 
-/* --- control plane ------------------------------------------------------ */
+/* --- decision engine ------------------------------------------------------ */
 
 .campaign-list,
 .policy-list {

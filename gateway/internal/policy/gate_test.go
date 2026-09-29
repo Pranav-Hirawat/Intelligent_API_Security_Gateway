@@ -13,7 +13,7 @@ func (s scopedLookup) LookupRequest(ip, route, method string) (Decision, bool) {
 	return d, ok && d.Route == route && d.Method == method
 }
 
-// Switching the control plane off from the console must stop its decisions
+// Switching the decision engine off from the console must stop its decisions
 // applying at once, and switching back on must not wait for a refresh.
 func TestGateSwitchesDecisionsWithoutLosingThem(t *testing.T) {
 	inner := fixed{"203.0.113.5": {Action: ActionTempBlock}}

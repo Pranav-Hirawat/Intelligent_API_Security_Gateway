@@ -9,12 +9,12 @@ independent lanes**:
 - **The data plane** — a Go reverse proxy that every request passes through. It
   runs on a microsecond budget, so it only ever does work that is cheap and
   bounded: match a pattern, increment a counter, read a map.
-- **The control plane** — a Python agent that runs on a timer, off the request
+- **The decision engine** — a Python agent that runs on a timer, off the request
   path. It reads what the gateway saw, groups related activity into campaigns,
   and decides what should be done about them.
 
 The two lanes never call each other. They communicate only through Redis: the
-gateway writes evidence, the control plane writes policy. Either one can be
+gateway writes evidence, the decision engine writes policy. Either one can be
 stopped without taking the other down, which is the point — an agent that
 crashes must not be able to take the API offline with it.
 
@@ -35,7 +35,7 @@ keeping it independent.
 | Lane | Runs | Responsibility |
 | --- | --- | --- |
 | Gateway (`gateway/`) | Per request | Resolve the client IP, detect known attack shapes, enforce active policy, forward to the backend, record what happened |
-| Control plane (`control-plane/`) | Every 30s | Read evidence, cluster it into campaigns, choose an action, write time-bounded policy |
+| Decision engine (`decision-engine/`) | Every 30s | Read evidence, cluster it into campaigns, choose an action, write time-bounded policy |
 | Dashboard (`gateway-dashboard/`) | On demand | Show live traffic, campaigns, and policy; let an operator override the agent |
 
 ## Five core mechanisms
@@ -57,7 +57,7 @@ additional detection algorithms. LLM narration runs after policy selection and
 cannot influence risk, confidence, or enforcement; the offline template
 provider is the safe default.
 
-For the full decision explanation, see [Control Plane](control-plane.md) and
+For the full decision explanation, see [Decision Engine](decision-engine.md) and
 [Adaptive Policy and Analyst Control](adaptive-policy.md).
 
 ## Request path
@@ -83,13 +83,13 @@ flowchart LR
 ## The feedback loop
 
 What makes this more than a pattern matcher is that the two lanes form a cycle.
-The gateway's observations become the control plane's input, and the control
-plane's decisions become the gateway's behaviour on the next refresh.
+The gateway's observations become the decision engine's input, and the decision
+engine's decisions become the gateway's behaviour on the next refresh.
 
 ```mermaid
 flowchart LR
     GW[Gateway] -->|evidence: iasg:events| Redis[(Redis)]
-    Redis -->|reads stream| CP[Control plane]
+    Redis -->|reads stream| CP[Decision engine]
     CP -->|policy:ip with a TTL| Redis
     Redis -->|snapshot every 5s| GW
     CP -->|campaigns| PG[(Postgres)]
@@ -109,8 +109,8 @@ it happens again. See [Policy Enforcement](policy-enforcement.md).
 | [System Architecture](system-architecture.md) | The runtime structure of both lanes |
 | [Request Lifecycle](request-lifecycle.md) | The middleware chain and why it is ordered as it is |
 | [Detection Signals](detection-signals.md) | The six detectors and the evidence they produce |
-| [Policy Enforcement](policy-enforcement.md) | How the gateway acts on the control plane's decisions |
-| [Control Plane](control-plane.md) | The agent cycle, campaigns, and the escalation ladder |
+| [Policy Enforcement](policy-enforcement.md) | How the gateway acts on the decision engine's decisions |
+| [Decision Engine](decision-engine.md) | The agent cycle, campaigns, and the escalation ladder |
 | [Identifying the Client](client-ip.md) | Why the attributed IP is the foundation of everything else |
 | [Running Locally](running-locally.md) / [Running with Docker](running-with-docker.md) | Getting it started |
 | [Protecting Your Own API](protecting-your-own-api.md) | Putting the gateway in front of an API you run |

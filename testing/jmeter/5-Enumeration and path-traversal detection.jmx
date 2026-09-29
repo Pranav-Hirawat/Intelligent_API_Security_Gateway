@@ -12,7 +12,7 @@ under vulnerable-app/backend/demo-files; they cannot reach container or host fil
 The enumeration probe and first traversal sampler assert HTTP 200 and harmless
 fixture values. The traversal evidence then arms the gateway reflex, so later
 requests from the same documentation IP must receive HTTP 403. It then waits 45
-seconds so the IASG control plane can correlate the evidence and write any
+seconds so the IASG decision engine can correlate the evidence and write any
 eligible policy.</stringProp>
       <boolProp name="TestPlan.functional_mode">false</boolProp>
       <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>

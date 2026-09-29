@@ -14,7 +14,7 @@ forwards the rest to one backend URL.
 client ──HTTPS──▶ your HTTPS proxy ──HTTP──▶ gateway :8082 ──HTTP──▶ your API
                   (nginx, Caddy, LB)          │
                                               ▼
-                                   Redis ◀── control plane ──▶ Postgres
+                                   Redis ◀── decision engine ──▶ Postgres
                                      ▲
                                      └── console :5177 (loopback only)
 ```
@@ -23,7 +23,7 @@ Two files do the work:
 
 | File | What it is |
 | --- | --- |
-| `infra/docker-compose.own-api.yml` | The gateway, control plane, console, Redis and Postgres. No demo backend. |
+| `infra/docker-compose.own-api.yml` | The gateway, decision engine, console, Redis and Postgres. No demo backend. |
 | `gateway/configs/config.own-api.yaml` | A complete gateway config with the four site-specific sections marked `CHANGE ME`. |
 
 The desktop app is not a way to do this. It runs a fixed demo stack: its
@@ -269,7 +269,7 @@ The template starts almost in detect-only mode:
 | --- | --- | --- |
 | `enforcement.block.signals` | `[api_flooding]` | The gateway blocks on its own only for floods above `min_score` |
 | `enforcement.rate_limit.enforce` | `false` | Over-limit traffic is reported, not refused |
-| `enforcement.policy.enabled` | `false` | Control-plane decisions are recorded, not enforced |
+| `enforcement.policy.enabled` | `false` | Decision-engine decisions are recorded, not enforced |
 
 Run it for a while and read the Events and Campaigns pages. Anything that fires
 on legitimate traffic is a template, threshold or proxy setting to fix before
@@ -303,5 +303,5 @@ page. Settings changes are stored in Redis, and **Revert to file** returns to
 | `gateway/internal/config/config_test.go` | `TestOwnAPITemplateDetectsWhatTheExampleDetects` |
 | `gateway/internal/signals/unknown_route_scanning.go` | Why unmatched routes matter |
 | `gateway/internal/signals/brute_force.go` | How `auth_outcomes` feeds brute-force detection |
-| `control-plane/iasg/policy/writer.py` | Why private addresses are never blocked |
+| `decision-engine/iasg/policy/writer.py` | Why private addresses are never blocked |
 | `.github/workflows/release.yml` | Attaches the compose file to each release with registry and version filled in |

@@ -68,7 +68,7 @@ func TestDisabledRedisBuildsNothing(t *testing.T) {
 	}
 }
 
-// What the console and the control plane read: the stream entry with its
+// What the console and the decision engine read: the stream entry with its
 // indexed fields, the counters, the attacker board, and the per-IP latest.
 func TestAnEventLandsEverywhereItsReadersLook(t *testing.T) {
 	store, _, client := liveStore(t, nil)
@@ -178,6 +178,6 @@ func TestStreamKeysAndCapsFollowConfig(t *testing.T) {
 	}
 	cfg.ArrivalStreamKey, cfg.HealthStreamKey = "", ""
 	if store.Arrivals(cfg).key != KeyArrivals || store.Health(cfg).key != KeyHealth {
-		t.Error("empty stream keys did not fall back to the defaults the control plane reads")
+		t.Error("empty stream keys did not fall back to the defaults the decision engine reads")
 	}
 }

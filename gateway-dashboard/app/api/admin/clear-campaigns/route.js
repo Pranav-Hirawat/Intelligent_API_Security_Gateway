@@ -34,12 +34,12 @@ export const dynamic = "force-dynamic";
  *                                to campaign display.
  *
  * The reset watermark is written FIRST, before either store is touched. This
- * is what makes a concurrent control-plane cycle safe without a cross-process
+ * is what makes a concurrent decision-engine cycle safe without a cross-process
  * lock: if a cycle is mid-flight right now and writes a new campaign from
  * evidence it already read before this request arrived, that write either
  * lands before the truncate/DEL below (and is deleted right along with
  * everything else) or after (and is evidence produced before the watermark,
- * so the NEXT cycle's correlation -- see control-plane's EvidenceConsumer --
+ * so the NEXT cycle's correlation -- see decision-engine's EvidenceConsumer --
  * already knows to ignore whatever produced it). Either way nothing from
  * before this moment can end up standing after it.
  */
@@ -76,7 +76,7 @@ export async function POST(request) {
   try {
     redis = await getRedis();
     // See the module comment: this ordering is what makes a concurrent
-    // control-plane cycle safe. Without the watermark nothing else may run.
+    // decision-engine cycle safe. Without the watermark nothing else may run.
     await redis.set(RESET_WATERMARK_KEY, String(Date.now()));
   } catch (err) {
     return Response.json({ ok: false, error: `redis unavailable: ${err.message}` }, { status: 503 });

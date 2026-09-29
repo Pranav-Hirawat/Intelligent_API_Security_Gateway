@@ -26,10 +26,10 @@ body:
       description: >
         The data plane must stay fast and must not wait on Redis, the agent or a
         model. Anything that would add a blocking call to the request path needs
-        a much stronger argument than the same change in the control plane.
+        a much stronger argument than the same change in the decision engine.
       options:
         - Go gateway — in the request path
-        - Python control plane — off the request path
+        - Python decision engine — off the request path
         - Dashboard / desktop app
         - Detection logic (a new or changed signal)
         - Documentation or tooling

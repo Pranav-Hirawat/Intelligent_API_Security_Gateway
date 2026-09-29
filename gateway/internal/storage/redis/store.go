@@ -55,7 +55,7 @@ func New(cfg config.RedisConfig) (*Store, error) {
 	streamKey := cfg.StreamKey
 	streamKey = cmp.Or(streamKey, KeyEvents)
 
-	// A startup outage must not permanently disable the control plane's
+	// A startup outage must not permanently disable the decision engine's
 	// evidence feed. Keep the client so later queued writes can reconnect;
 	// each individual attempt still has the configured timeout.
 	log.Printf("Redis telemetry configured at %s (stream=%s maxlen=%d)", cfg.Addr(), streamKey, cfg.StreamMaxLen)

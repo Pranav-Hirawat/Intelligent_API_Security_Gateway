@@ -6,12 +6,12 @@ export const dynamic = "force-dynamic";
 
 const OVERRIDE_STREAM = process.env.IASG_OVERRIDE_STREAM || "iasg_overrides";
 
-// Exactly the ladder the control plane knows. Anything else is rejected here
+// Exactly the ladder the decision engine knows. Anything else is rejected here
 // rather than written and silently ignored a cycle later.
 const ACTIONS = new Set(["monitor", "throttle", "temp_block", "escalate"]);
 
 // Deliberately not an enforcement path. This writes an instruction to the
-// stream the control plane reads; the agent still runs it through the
+// stream the decision engine reads; the agent still runs it through the
 // allowlist and the collateral checks before any policy is written. A typo
 // here cannot block an address the operator declared as theirs.
 export async function POST(request) {

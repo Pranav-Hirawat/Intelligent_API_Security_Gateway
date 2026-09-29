@@ -37,9 +37,9 @@ jobs:
           - name: gateway
             context: gateway
             file: gateway/Dockerfile
-          - name: control-plane
+          - name: decision-engine
             context: .
-            file: control-plane/Dockerfile
+            file: decision-engine/Dockerfile
           - name: dashboard
             context: gateway-dashboard
             file: gateway-dashboard/Dockerfile

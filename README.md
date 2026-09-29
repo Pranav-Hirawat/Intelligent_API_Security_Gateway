@@ -21,7 +21,7 @@ Two lanes, deliberately separate.
                                     │                     ▲
                                     ▼                     │
                     ┌──────────────────────────────────────────┐
-                    │  Python control plane (every 30s)        │
+                    │  Python decision engine (every 30s)        │
                     │  correlate · remember · decide · explain │
                     └──────────────────────────────────────────┘
 ```
@@ -29,11 +29,11 @@ Two lanes, deliberately separate.
 The **gateway** handles every request and must be fast, so it only ever reads a cached
 answer — never waits on Redis, never waits on the agent, never waits on a model.
 
-The **control plane** never touches a live request. It reads what the detectors saw, groups
+The **decision engine** never touches a live request. It reads what the detectors saw, groups
 it into attack campaigns, decides enforcement, and writes it back as `policy:<ip>` keys
 with a TTL.
 
-Stop the control plane and the gateway keeps serving traffic exactly as before. That
+Stop the decision engine and the gateway keeps serving traffic exactly as before. That
 independence is the point of the split.
 
 ## Five core mechanisms
@@ -56,9 +56,9 @@ confidence, or enforcement. The offline template provider remains the safe
 default; Ollama is an explicit, opt-in narration provider — as a container in
 the Docker stack (`docker compose --profile llm up -d`, see
 [`infra/README.md`](infra/README.md#narration)) or as a native install
-alongside a bare-metal control plane.
+alongside a bare-metal decision engine.
 
-See the [control-plane overview](control-plane/OVERVIEW.md) and
+See the [decision-engine overview](decision-engine/OVERVIEW.md) and
 [adaptive-policy documentation](gateway/docs/adaptive-policy.md) for the
 decision boundaries and their safeguards.
 
@@ -66,7 +66,7 @@ decision boundaries and their safeguards.
 
 Functional requirements describe the observable jobs the system must perform.
 They are separate from implementation choices: the requirements say *what* the
-gateway delivers, while the Go proxy, Redis, and Python control plane explain
+gateway delivers, while the Go proxy, Redis, and Python decision engine explain
 *how* it delivers it.
 
 | Requirement | What it means | Algorithm used | How it is done | Why it matters |
@@ -78,10 +78,10 @@ gateway delivers, while the Go proxy, Redis, and Python control plane explain
 | FR5 — Enforce decisions and rate limits | Apply monitor, throttle, temporary-block, and escalation outcomes before forwarding. | Background policy snapshots, Redis token buckets, and threshold-based reflex blocking. | The gateway reads background-refreshed policy snapshots, uses bounded quotas for throttles, and can apply a local reflex for urgent flooding. | Protects the backend without making requests wait for analysis. |
 | FR6 — Forward permitted requests and capture responses | Preserve normal application behaviour while observing outcomes. | Reverse proxying with response-status capture. | Admitted requests are reverse-proxied to the backend and response metadata is recorded as telemetry. | Lets the gateway protect an existing API without modifying it. |
 | FR7 — Provide monitoring and visualisation | Make traffic, evidence, campaigns, policies, and health visible. | Redis-stream telemetry aggregation and dashboard polling. | Redis telemetry and durable campaign history are presented by the Next.js dashboard. | Gives operators an auditable view of why action was taken. |
-| FR8 — Support configuration and human overrides | Let operators configure thresholds, modes, exemptions, and policy instructions. | Validated override processing with deterministic safety guardrails. | Dashboard actions become control-plane overrides and still pass the policy writer's safety rails. | Keeps human review available without bypassing safety controls. |
+| FR8 — Support configuration and human overrides | Let operators configure thresholds, modes, exemptions, and policy instructions. | Validated override processing with deterministic safety guardrails. | Dashboard actions become decision-engine overrides and still pass the policy writer's safety rails. | Keeps human review available without bypassing safety controls. |
 
 **Viva summary:** IASG is a split-plane security gateway. The gateway handles
-the immediate request path; the control plane performs slower correlation and
+the immediate request path; the decision engine performs slower correlation and
 policy generation afterward. This separation is deliberate: it keeps
 enforcement fast, decisions explainable, and every policy bounded by a TTL and
 safety checks.
@@ -91,7 +91,7 @@ safety checks.
 | Path | What it is |
 |---|---|
 | [`gateway/`](gateway/README.md) | Go reverse proxy, detectors, policy enforcement |
-| [`control-plane/`](control-plane/README.md) | Python agent — correlation, policy, narration |
+| [`decision-engine/`](decision-engine/README.md) | Python agent — correlation, policy, narration |
 | [`vulnerable-app/`](vulnerable-app/README.md) | Deliberately insecure API to attack |
 | [`gateway-dashboard/`](gateway-dashboard/README.md) | Next.js operations console |
 | [`infra/`](infra/README.md) | Docker Compose for everything |
@@ -189,10 +189,10 @@ go mod download
 go run ./cmd/server
 ```
 
-**3. Control plane** — the agent. Needs Redis; Postgres is optional but recommended:
+**3. Decision engine** — the agent. Needs Redis; Postgres is optional but recommended:
 
 ```bash
-cd control-plane
+cd decision-engine
 python3 -m venv .venv
 .venv/bin/python -m pip install -e ".[dev,postgres]"
 
@@ -203,7 +203,7 @@ export IASG_POSTGRES_URL=postgresql://iasg_user:changeme@localhost:5432/iasg
 .venv/bin/python -m iasg --dry-run  # decide everything, write nothing
 ```
 
-Every setting has a working default. `control-plane/.env.example` documents the `IASG_*`
+Every setting has a working default. `decision-engine/.env.example` documents the `IASG_*`
 variables; export the ones you want to change rather than copying the file:
 
 ```bash
@@ -231,7 +231,7 @@ The seeder writes realistic attack evidence straight into Redis, so the whole pi
 demonstrable in a second:
 
 ```bash
-cd control-plane
+cd decision-engine
 .venv/bin/python -m tools.seed_evidence --scenario credential-stuffing
 .venv/bin/python -m iasg --once
 
@@ -264,8 +264,8 @@ enforcement:
 page while the gateway is running, which is the easier way to show the difference between
 observing and enforcing without restarting anything.
 
-Now attack it — the `X-Forwarded-For` gives the request a public source address the control
-plane will act on (loopback and private ranges are never written policy for).
+Now attack it — the `X-Forwarded-For` gives the request a public source address the decision
+engine will act on (loopback and private ranges are never written policy for).
 
 The commands below assume the gateway is running **on your machine** (the "run locally"
 path above), where the request arrives from `127.0.0.1` and the header is believed. Under
@@ -284,7 +284,7 @@ for i in $(seq 1 40); do
 done
 ```
 
-Within one control-plane cycle a campaign forms and a policy is written. Watch it happen:
+Within one decision-engine cycle a campaign forms and a policy is written. Watch it happen:
 
 ```bash
 redis-cli GET policy:203.0.113.60      # the agent's decision, with a TTL
@@ -324,7 +324,7 @@ policy replaces the one it would otherwise get:
 | Blocked | Nothing — the request is refused |
 
 The policy wins in **both** directions: a campaign judged worse than the baseline is held
-tighter, one judged better is allowed more. The control plane looked at that address
+tighter, one judged better is allowed more. The decision engine looked at that address
 specifically, which beats the figure everyone else gets.
 
 The baseline is **off by default**. `rate_limit.enabled` counts requests and raises a flood
@@ -409,7 +409,7 @@ those means rebuilding the server, which a live apply cannot do.
   threshold with a high enough score blocks the address immediately, for a short fixed
   period, and only for detectors named in the config
 
-**Control plane (Python)**
+**Decision engine (Python)**
 
 - Groups IPs into campaigns by shared behaviour — subnet, user agent, endpoint, detector,
   timing
@@ -434,7 +434,7 @@ Without Postgres, campaigns live in Redis under a 24-hour TTL, so restarting the
 loses every investigation in progress. With it, they survive:
 
 ```bash
-cd control-plane
+cd decision-engine
 .venv/bin/python -m pip install -e ".[postgres]"
 
 export IASG_POSTGRES_URL=postgresql://iasg_user:changeme@localhost:5432/iasg
@@ -487,7 +487,7 @@ says what to restore.
 ```bash
 cd gateway && go build ./... && go vet ./... && go test ./...
 cd gateway && go test ./internal/signals/ -race
-cd control-plane && PYTHONPATH=. .venv/bin/python -m pytest -q
+cd decision-engine && PYTHONPATH=. .venv/bin/python -m pytest -q
 cd gateway-dashboard && npm test
 cd vulnerable-app/backend && npm test
 ```
@@ -511,7 +511,7 @@ IASG_TEST_POSTGRES_URL=postgresql://iasg_user:changeme@localhost:5432/iasg_test 
   config block that used to imply one has been deleted rather than left in the file — it
   was parsed into Go structs that nothing ever read. Scoring already happens where the
   evidence is: each detector scores what it sees, the gateway's reflex acts on a threshold
-  cross in nanoseconds, and the control plane re-decides every 30s with the wider view. An
+  cross in nanoseconds, and the decision engine re-decides every 30s with the wider view. An
   engine in between would only re-derive what both already have.
 
 Postgres was a real gap on this list until campaigns and feedback were moved into it. See
@@ -535,7 +535,7 @@ stack. The pages worth starting from:
 - [Detection signals](gateway/docs/detection-signals.md) — what each detector looks for
 - [Policy enforcement](gateway/docs/policy-enforcement.md) — the decision contract, the
   adaptive rate limit, and why every action must be able to expire
-- [Control plane](gateway/docs/control-plane.md)
+- [Decision engine](gateway/docs/decision-engine.md)
 
 **Running and operating it**
 
@@ -548,11 +548,11 @@ stack. The pages worth starting from:
 
 **Per-component READMEs**
 
-- [Gateway](gateway/README.md), [control plane](control-plane/README.md),
+- [Gateway](gateway/README.md), [decision engine](decision-engine/README.md),
   [dashboard](gateway-dashboard/README.md), [infra](infra/README.md),
   [testing](testing/README.md)
-- [Control-plane algorithm summary](control-plane/OVERVIEW.md) and
-  [full algorithm pseudocode](control-plane/README.md#algorithms-and-pseudocode)
+- [Decision-engine algorithm summary](decision-engine/OVERVIEW.md) and
+  [full algorithm pseudocode](decision-engine/README.md#algorithms-and-pseudocode)
 - [Demo walkthrough](DEMO.md) and [command reference](commands.md)
 
 ## Stopping

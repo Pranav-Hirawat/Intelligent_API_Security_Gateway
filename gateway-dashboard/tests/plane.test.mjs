@@ -1,4 +1,4 @@
-// Reading what the control plane wrote. The agent and the console are
+// Reading what the decision engine wrote. The agent and the console are
 // separate programs released separately, so every field here may be missing,
 // malformed, or from an older version -- and a page must still render.
 import assert from "node:assert/strict";

@@ -1,5 +1,5 @@
 // Package policy lets the gateway act on decisions made by the Python control
-// plane. The control plane writes policy:<ip> keys into Redis; this package
+// plane. The decision engine writes policy:<ip> keys into Redis; this package
 // reads them and the middleware enforces them.
 //
 // The read is deliberately not a Redis call per request. A GET over TCP costs
@@ -10,7 +10,7 @@
 // is then a few nanoseconds and never touches the network.
 //
 // The cost is staleness: a decision takes up to RefreshInterval to take
-// effect. The control plane only produces decisions every 30s, so a 5s
+// effect. The decision engine only produces decisions every 30s, so a 5s
 // refresh is already faster than new decisions arrive.
 package policy
 
@@ -26,7 +26,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// Actions the control plane can write. Anything else is treated as unknown
+// Actions the decision engine can write. Anything else is treated as unknown
 // and allowed through -- an unrecognised action must never block traffic.
 const (
 	ActionAllow          = "allow"
@@ -41,14 +41,14 @@ const (
 // OutcomeRateLimited is recorded when a throttled address exceeded the rate
 // its policy allowed and the request was refused with 429.
 //
-// It is an outcome, not an action: the control plane never writes it. The
+// It is an outcome, not an action: the decision engine never writes it. The
 // action stays "throttle" -- this is what throttling did to one request, and
 // telemetry needs to tell a request that was let through under a throttle from
 // one that was turned away by it, or there is no way to show the limit working.
 const OutcomeRateLimited = "rate_limited"
 
 // Decision mirrors the JSON at policy:<ip>, written by PolicyDecision.to_json
-// in control-plane/iasg/models.py. That method and this struct are the two
+// in decision-engine/iasg/models.py. That method and this struct are the two
 // halves of the contract between the lanes.
 type Decision struct {
 	Action             string          `json:"action"`
@@ -70,11 +70,11 @@ type Decision struct {
 	EndpointScope      *EndpointScope  `json:"endpoint_scope"`
 
 	// RequestsPerMinute is what a throttled address may send while this policy
-	// stands. It is what makes the rate limiting adaptive: the control plane
+	// stands. It is what makes the rate limiting adaptive: the decision engine
 	// picks the number from how bad the campaign is, rather than every
 	// throttled caller being slowed by the same fixed amount.
 	//
-	// Zero means the policy named no rate, which is what a control plane older
+	// Zero means the policy named no rate, which is what a decision engine older
 	// than this field writes. The gateway falls back to its configured
 	// throttle behaviour then, so an old policy still enforces something.
 	RequestsPerMinute int    `json:"requests_per_minute"`
@@ -369,7 +369,7 @@ func collectAt(into map[string]Decision, keys []string, values []any, ttls []tim
 			continue // nil: the key expired between the SCAN and the MGET
 		}
 
-		// Every action the control plane can take is time-bounded, and the
+		// Every action the decision engine can take is time-bounded, and the
 		// gateway relies on Redis dropping the key to restore service by
 		// itself. A key with no expiry has no such release: nothing renews it
 		// and nothing clears it, so one mistyped key would refuse an address

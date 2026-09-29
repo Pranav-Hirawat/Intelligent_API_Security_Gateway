@@ -5,7 +5,7 @@ const globalForPg = globalThis;
 /**
  * The durable store, or null when there isn't one.
  *
- * Optional on purpose, exactly as it is for the control plane: without
+ * Optional on purpose, exactly as it is for the decision engine: without
  * IASG_POSTGRES_URL the console simply has no history to show, and every
  * live panel keeps working from Redis.
  */
@@ -45,7 +45,7 @@ export async function truncateTables(tables, failure = {}) {
       const { rows } = await client.query(`SELECT count(*)::int AS n FROM ${table}`);
       before[table] = rows[0].n;
     }
-    // The sequence only exists once the control plane has run, and a clear
+    // The sequence only exists once the decision engine has run, and a clear
     // before it ever has is still a valid clear. Asked first rather than
     // tolerated as an error inside the transaction: any failed statement aborts
     // a Postgres transaction, COMMIT then silently rolls back, and the rows

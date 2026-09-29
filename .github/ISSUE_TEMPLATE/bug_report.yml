@@ -14,7 +14,7 @@ body:
       label: Which part
       options:
         - gateway (Go data plane)
-        - control-plane (Python agent)
+        - decision-engine (Python agent)
         - gateway-dashboard (console)
         - desktop (Electron launcher)
         - release / CI
@@ -54,7 +54,7 @@ body:
     id: logs
     attributes:
       label: Relevant log output
-      description: Gateway or control-plane logs, or the failing CI job.
+      description: Gateway or decision-engine logs, or the failing CI job.
       render: shell
 
   - type: input

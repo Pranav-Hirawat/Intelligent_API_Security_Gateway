@@ -64,7 +64,7 @@ func TestThrottlePolicyEnforcesItsRate(t *testing.T) {
 	}
 }
 
-// A throttle with no rate is an older control plane's policy. It must still
+// A throttle with no rate is an older decision engine's policy. It must still
 // enforce something rather than becoming a pass-through.
 func TestThrottleWithoutARateUsesConfiguredFallback(t *testing.T) {
 	decision := Decision{Action: ActionThrottle}

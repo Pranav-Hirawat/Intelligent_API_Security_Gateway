@@ -10,7 +10,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// The JSON the Python control plane actually writes.
+// The JSON the Python decision engine actually writes.
 const realPolicy = `{"action": "temp_block", "campaign_id": "2", "confidence": 0.97,` +
 	` "reason": "Credential Stuffing", "issued_at": "2026-08-12T06:30:30.270057+00:00",` +
 	` "expires_in": 1800}`
@@ -154,7 +154,7 @@ func TestCloseWithoutStart(t *testing.T) {
 }
 
 // An unreachable Redis must leave the store empty and usable, never blocking
-// or panicking -- the gateway has to keep serving when the control plane is
+// or panicking -- the gateway has to keep serving when the decision engine is
 // down.
 func TestRefreshAgainstUnreachableRedisFailsOpen(t *testing.T) {
 	s := NewStore(Config{Addr: "127.0.0.1:1", RefreshInterval: time.Second})
@@ -239,7 +239,7 @@ func TestStartAndCloseLifecycle(t *testing.T) {
 
 // A policy key with no expiry is refused rather than enforced.
 //
-// Every action the control plane can take is time-bounded and the gateway
+// Every action the decision engine can take is time-bounded and the gateway
 // relies on Redis dropping the key to restore service by itself. A key that
 // never expires has no such release, so honouring it would refuse an address
 // permanently -- the one failure a security gateway must not have by accident.

@@ -169,7 +169,7 @@ enforcement:
     # refusing traffic are different decisions -- only the second can turn a
     # legitimate spike into an outage.
     #
-    # This is the baseline. An address the control plane has throttled is held
+    # This is the baseline. An address the decision engine has throttled is held
     # to the rate *its* policy names instead, and the ranges in
     # `block.exempt_cidrs` skip the limit entirely.
     enforce: false
@@ -289,7 +289,7 @@ enforcement:
   
   # Blocking
   # The gateway's own blocking -- its reflex, as opposed to the considered
-  # decisions the control plane writes as policy keys.
+  # decisions the decision engine writes as policy keys.
   #
   # A policy decision takes up to one agent cycle (30s) plus one snapshot
   # refresh (5s) to reach the gateway, which is too slow for a flood. This
@@ -306,7 +306,7 @@ enforcement:
     # Only these may block on their own. Flood is windowed; traversal is
     # deliberately included because its score reaches the floor only for a
     # concrete traversal signature. Enumeration alone remains below the floor
-    # and is correlated by the control plane instead.
+    # and is correlated by the decision engine instead.
     signals:
       - api_flooding
       - enumeration_path_traversal
@@ -327,7 +327,7 @@ enforcement:
       - 172.16.0.0/12
       - 192.168.0.0/16
 
-  # Acting on decisions written by the Python control plane at policy:<ip>.
+  # Acting on decisions written by the Python decision engine at policy:<ip>.
   # Off by default so detectors stay recommend-only until you opt in.
   policy:
     enabled: false

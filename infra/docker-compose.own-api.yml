@@ -1,4 +1,4 @@
-# IASG in front of your own API: the gateway, the control plane, the console
+# IASG in front of your own API: the gateway, the decision engine, the console
 # and their stores, with no demo backend. Guide:
 # gateway/docs/protecting-your-own-api.md
 #
@@ -78,8 +78,8 @@ services:
       redis:
         condition: service_healthy
 
-  control_plane:
-    image: ${IASG_REGISTRY:-ghcr.io/adnan-safdari}/iasg-control-plane:${IASG_VERSION:?IASG_VERSION is required}
+  decision_engine:
+    image: ${IASG_REGISTRY:-ghcr.io/adnan-safdari}/iasg-decision-engine:${IASG_VERSION:?IASG_VERSION is required}
     restart: unless-stopped
     environment:
       IASG_REDIS_URL: redis://redis:6379/0
