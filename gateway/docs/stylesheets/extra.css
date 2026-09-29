@@ -210,6 +210,15 @@
   font-weight: 600;
 }
 
+/* The header already identifies the site. On desktop, repeating that same
+   name above the primary navigation wastes the first visible navigation row;
+   keep it in the mobile drawer, where the header is not always visible. */
+@media screen and (min-width: 76.25em) {
+  .md-sidebar--primary .md-nav__title {
+    display: none;
+  }
+}
+
 /* --- admonitions --------------------------------------------------------- */
 
 .md-typeset .admonition,
