@@ -2,7 +2,7 @@
 
 An API gateway that detects attacks in the request path and decides what to do about them
 out of it — a fast Go proxy that enforces, and a Python agent that watches, correlates and
-adapts.
+adapts. 
 
 ## How it works
 
