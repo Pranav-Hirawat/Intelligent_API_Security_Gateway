@@ -6,7 +6,7 @@
 
 Before starting: clear old policies for 203.0.113.120; select Automatic; keep external policy enforcement and policy throttling enabled; enable &quot;ready-baseline behavioural throttles&quot; in Adaptive; and disarm the API-flood reflex or exempt this IP from it.
 
-This run learns one trusted 60-second window, makes a valid 30-request burst, waits for the decision engine to create its dynamic throttle, and then consumes the policy quota until the final request returns 429 with Retry-After. Set Adaptive's Warm-up windows setting to 1 before starting. One window is for this short demonstration only.
+This run uses two calm learning windows before making a valid 30-request burst. The first safely absorbs a partial heartbeat minute after Reset console; the second becomes the trusted baseline. It then waits for the decision engine to create its dynamic throttle, warms the gateway&apos;s Redis quota client, and consumes the policy quota until the final request returns 429 with Retry-After. Set Adaptive&apos;s Warm-up windows setting to 1 before starting.
 
 No invalid login, scan path, SQL-shaped value, or malicious payload occurs in this plan. Check Policy after the run for the generated rate and TTL; after that TTL expires, one normal GET /api/products should return 200 again.</stringProp>
       <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables">
@@ -28,7 +28,7 @@ No invalid login, scan path, SQL-shaped value, or malicious payload occurs in th
           </elementProp>
           <elementProp name="LEARNING_WINDOWS" elementType="Argument">
             <stringProp name="Argument.name">LEARNING_WINDOWS</stringProp>
-            <stringProp name="Argument.value">${__P(LEARNING_WINDOWS,1)}</stringProp>
+            <stringProp name="Argument.value">${__P(LEARNING_WINDOWS,2)}</stringProp>
             <stringProp name="Argument.metadata">=</stringProp>
           </elementProp>
           <elementProp name="LEARNING_INTERVAL_MS" elementType="Argument">
@@ -53,6 +53,8 @@ No invalid login, scan path, SQL-shaped value, or malicious payload occurs in th
           </elementProp>
         </collectionProp>
       </elementProp>
+      <boolProp name="TestPlan.functional_mode">false</boolProp>
+      <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
     </TestPlan>
     <hashTree>
       <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="One valid-traffic ARL client">
@@ -66,7 +68,7 @@ No invalid login, scan path, SQL-shaped value, or malicious payload occurs in th
         </elementProp>
       </ThreadGroup>
       <hashTree>
-        <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Stable valid client identity">
+        <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Stable valid client identity" enabled="true">
           <collectionProp name="HeaderManager.headers">
             <elementProp name="" elementType="Header">
               <stringProp name="Header.name">X-Forwarded-For</stringProp>
@@ -79,7 +81,7 @@ No invalid login, scan path, SQL-shaped value, or malicious payload occurs in th
           </collectionProp>
         </HeaderManager>
         <hashTree/>
-        <IfController guiclass="IfControllerPanel" testclass="IfController" testname="1. Learn normal endpoint behaviour">
+        <IfController guiclass="IfControllerPanel" testclass="IfController" testname="1. Learn normal endpoint behaviour" enabled="true">
           <stringProp name="IfController.condition">${__groovy(true)}</stringProp>
           <boolProp name="IfController.evaluateAll">false</boolProp>
           <boolProp name="IfController.useExpression">true</boolProp>
@@ -171,6 +173,27 @@ No invalid login, scan path, SQL-shaped value, or malicious payload occurs in th
           <boolProp name="IfController.useExpression">true</boolProp>
         </IfController>
         <hashTree>
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Warm the policy quota Redis connection" enabled="true">
+            <intProp name="HTTPSampler.connect_timeout">3000</intProp>
+            <intProp name="HTTPSampler.response_timeout">5000</intProp>
+            <stringProp name="HTTPSampler.domain">${HOST}</stringProp>
+            <stringProp name="HTTPSampler.port">${PORT}</stringProp>
+            <stringProp name="HTTPSampler.protocol">http</stringProp>
+            <stringProp name="HTTPSampler.path">/api/products</stringProp>
+            <stringProp name="HTTPSampler.method">GET</stringProp>
+            <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+            <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
+            <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="User Defined Variables">
+              <collectionProp name="Arguments.arguments"/>
+            </elementProp>
+          </HTTPSamplerProxy>
+          <hashTree/>
+          <TestAction guiclass="TestActionGui" testclass="TestAction" testname="Wait for policy quota Redis recovery" enabled="true">
+            <intProp name="ActionProcessor.action">1</intProp>
+            <intProp name="ActionProcessor.target">0</intProp>
+            <stringProp name="ActionProcessor.duration">1500</stringProp>
+          </TestAction>
+          <hashTree/>
           <LoopController guiclass="LoopControlPanel" testclass="LoopController" testname="Consume dynamic policy quota" enabled="true">
             <stringProp name="LoopController.loops">${THROTTLE_REQUESTS}</stringProp>
             <boolProp name="LoopController.continue_forever">false</boolProp>
@@ -284,7 +307,7 @@ No invalid login, scan path, SQL-shaped value, or malicious payload occurs in th
           <stringProp name="filename"></stringProp>
         </ResultCollector>
         <hashTree/>
-        <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree">
+        <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree" enabled="true">
           <boolProp name="ResultCollector.error_logging">false</boolProp>
           <objProp>
             <name>saveConfig</name>

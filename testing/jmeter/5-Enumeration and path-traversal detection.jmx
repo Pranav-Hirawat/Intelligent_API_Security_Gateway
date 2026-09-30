@@ -4,14 +4,14 @@
     <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="IASG Enumeration and Path Traversal Detection">
       <stringProp name="TestPlan.comments">Step 5 one-click detection demonstration.
 
-One documentation IP sends four malicious-looking probes rapidly through localhost:8082.
-The first reaches a harmless planted enumeration marker. The remaining three use
-the demo application&apos;s bounded traversal route and can read only static files
-under vulnerable-app/backend/demo-files; they cannot reach container or host files.
+One documentation IP sends a plain enumeration probe, a percent-encoded
+enumeration probe, and a percent-encoded traversal probe rapidly through
+localhost:8082. The traversal route reads only static files under
+vulnerable-app/backend/demo-files; it cannot reach container or host files.
 
-The enumeration probe and first traversal sampler assert HTTP 200 and harmless
-fixture values. The traversal evidence then arms the gateway reflex, so later
-requests from the same documentation IP must receive HTTP 403. It then waits 45
+Both enumeration probes and the encoded traversal sampler assert HTTP 200 and
+harmless fixture values. The traversal evidence then arms the gateway reflex,
+so later raw traversal requests from the same documentation IP must receive HTTP 403. It then waits 45
 seconds so the IASG decision engine can correlate the evidence and write any
 eligible policy.</stringProp>
       <boolProp name="TestPlan.functional_mode">false</boolProp>
@@ -94,7 +94,31 @@ eligible policy.</stringProp>
           </JSR223Assertion>
           <hashTree/>
         </hashTree>
-        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="A2 - Bounded traversal returns fake config" enabled="true">
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="A2 - Encoded enumeration phase returns harmless env marker" enabled="true">
+          <intProp name="HTTPSampler.connect_timeout">3000</intProp>
+          <intProp name="HTTPSampler.response_timeout">5000</intProp>
+          <stringProp name="HTTPSampler.domain">${HOST}</stringProp>
+          <stringProp name="HTTPSampler.port">${PORT}</stringProp>
+          <stringProp name="HTTPSampler.protocol">http</stringProp>
+          <stringProp name="HTTPSampler.path">/%2eenv-demo</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+          <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="User Defined Variables">
+            <collectionProp name="Arguments.arguments"/>
+          </elementProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <JSR223Assertion guiclass="TestBeanGUI" testclass="JSR223Assertion" testname="Assert encoded harmless environment marker" enabled="true">
+            <stringProp name="scriptLanguage">groovy</stringProp>
+            <stringProp name="script">if (prev.getResponseCode() != &apos;200&apos; || !prev.getResponseDataAsString().contains(&apos;Harmless planted environment-file marker&apos;)) { AssertionResult.setFailure(true); AssertionResult.setFailureMessage(&apos;A2 expected HTTP 200 with the percent-encoded planted environment marker.&apos;) }</stringProp>
+            <stringProp name="parameters"></stringProp>
+            <stringProp name="filename"></stringProp>
+            <stringProp name="cacheKey">true</stringProp>
+          </JSR223Assertion>
+          <hashTree/>
+        </hashTree>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="A3 - Encoded traversal phase returns fake config" enabled="true">
           <intProp name="HTTPSampler.connect_timeout">3000</intProp>
           <intProp name="HTTPSampler.response_timeout">5000</intProp>
           <stringProp name="HTTPSampler.domain">${HOST}</stringProp>
@@ -108,7 +132,7 @@ eligible policy.</stringProp>
             <collectionProp name="Arguments.arguments">
               <elementProp name="file" elementType="HTTPArgument">
                 <boolProp name="HTTPArgument.always_encode">false</boolProp>
-                <stringProp name="Argument.value">public/../fake-config.txt</stringProp>
+                <stringProp name="Argument.value">public%2F..%2Ffake-config.txt</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
                 <boolProp name="HTTPArgument.use_equals">true</boolProp>
                 <stringProp name="Argument.name">file</stringProp>
@@ -117,16 +141,16 @@ eligible policy.</stringProp>
           </elementProp>
         </HTTPSamplerProxy>
         <hashTree>
-          <JSR223Assertion guiclass="TestBeanGUI" testclass="JSR223Assertion" testname="Assert fake config fixture" enabled="true">
+          <JSR223Assertion guiclass="TestBeanGUI" testclass="JSR223Assertion" testname="Assert encoded fake config fixture" enabled="true">
             <stringProp name="scriptLanguage">groovy</stringProp>
-            <stringProp name="script">if (prev.getResponseCode() != &apos;200&apos; || !prev.getResponseDataAsString().contains(&apos;demo_mode=true&apos;)) { AssertionResult.setFailure(true); AssertionResult.setFailureMessage(&apos;A2 expected HTTP 200 with fake-config.txt.&apos;) }</stringProp>
+            <stringProp name="script">if (prev.getResponseCode() != &apos;200&apos; || !prev.getResponseDataAsString().contains(&apos;demo_mode=true&apos;)) { AssertionResult.setFailure(true); AssertionResult.setFailureMessage(&apos;A3 expected HTTP 200 with percent-encoded fake-config.txt.&apos;) }</stringProp>
             <stringProp name="parameters"></stringProp>
             <stringProp name="filename"></stringProp>
             <stringProp name="cacheKey">true</stringProp>
           </JSR223Assertion>
           <hashTree/>
         </hashTree>
-        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="A3 - Traversal is refused after the reflex arms" enabled="true">
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="A4 - Raw traversal is refused after the encoded phase arms the reflex" enabled="true">
           <intProp name="HTTPSampler.connect_timeout">3000</intProp>
           <intProp name="HTTPSampler.response_timeout">5000</intProp>
           <stringProp name="HTTPSampler.domain">${HOST}</stringProp>
@@ -151,14 +175,14 @@ eligible policy.</stringProp>
         <hashTree>
           <JSR223Assertion guiclass="TestBeanGUI" testclass="JSR223Assertion" testname="Assert gateway reflex refusal" enabled="true">
             <stringProp name="scriptLanguage">groovy</stringProp>
-            <stringProp name="script">if (prev.getResponseCode() != &apos;403&apos;) { AssertionResult.setFailure(true); AssertionResult.setFailureMessage(&apos;A3 expected HTTP 403 after A2 armed the traversal reflex.&apos;) }</stringProp>
+            <stringProp name="script">if (prev.getResponseCode() != &apos;403&apos;) { AssertionResult.setFailure(true); AssertionResult.setFailureMessage(&apos;A4 expected HTTP 403 after encoded A3 armed the traversal reflex.&apos;) }</stringProp>
             <stringProp name="parameters"></stringProp>
             <stringProp name="filename"></stringProp>
             <stringProp name="cacheKey">true</stringProp>
           </JSR223Assertion>
           <hashTree/>
         </hashTree>
-        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="A4 - Later request remains refused" enabled="true">
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="A5 - Later raw traversal request remains refused" enabled="true">
           <intProp name="HTTPSampler.connect_timeout">3000</intProp>
           <intProp name="HTTPSampler.response_timeout">5000</intProp>
           <stringProp name="HTTPSampler.domain">${HOST}</stringProp>
@@ -183,7 +207,7 @@ eligible policy.</stringProp>
         <hashTree>
           <JSR223Assertion guiclass="TestBeanGUI" testclass="JSR223Assertion" testname="Assert gateway reflex remains active" enabled="true">
             <stringProp name="scriptLanguage">groovy</stringProp>
-            <stringProp name="script">if (prev.getResponseCode() != &apos;403&apos;) { AssertionResult.setFailure(true); AssertionResult.setFailureMessage(&apos;A4 expected HTTP 403 while the traversal reflex is active.&apos;) }</stringProp>
+            <stringProp name="script">if (prev.getResponseCode() != &apos;403&apos;) { AssertionResult.setFailure(true); AssertionResult.setFailureMessage(&apos;A5 expected HTTP 403 while the traversal reflex is active.&apos;) }</stringProp>
             <stringProp name="parameters"></stringProp>
             <stringProp name="filename"></stringProp>
             <stringProp name="cacheKey">true</stringProp>
