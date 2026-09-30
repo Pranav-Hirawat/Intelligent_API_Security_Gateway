@@ -157,9 +157,7 @@
   --text-xl: 26px; /* section-level emphasis (e.g. Adaptive's mode banner -- not in the mockup, kept between card-head and page h1) */
   --text-2xl: 27px; /* stat-tile numbers (Overview, Policy) -- mockup's exact value */
 
-  /* Archivo is loaded at 400/500/600/700/800 (app/layout.js) -- 800 is a
-     real weight now, not synthetic bolding, so this must land on a loaded
-     value. */
+  /* Bold display weight used by hero/stat numbers and section headings. */
   --weight-bold: 800; /* hero/stat numbers, page title, card titles */
 }
 
@@ -189,7 +187,7 @@ body {
   min-height: 100%;
   background: var(--bg);
   color: var(--text);
-  font-family: var(--font-archivo), "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
   font-size: 13px;
   line-height: 1.45;
 }
