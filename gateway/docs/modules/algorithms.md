@@ -1,448 +1,535 @@
 # The 17 Algorithms
 
-This module explains the 17 deterministic procedures used by the gateway and
-the decision engine. Here, “algorithm” means a repeatable rule or calculation;
-it does **not** mean an LLM. The optional model only writes an explanation
-after policy has already been selected.
+This module documents the pseudocode used by the gateway and decision engine.
+Here, “algorithm” means a repeatable rule or calculation; it does **not** mean
+an LLM.
 
-## A. Gateway observation algorithms
+## Decision-engine algorithms
 
-| # | Algorithm | Simple explanation | Result |
-| --- | --- | --- | --- |
-| 1 | Trusted client-IP resolution | Use the TCP peer by default. Use `X-Forwarded-For` only if that peer is a configured trusted proxy; in a chain, scan right-to-left past trusted proxies. | One safe IP key for all later checks. |
-| 2 | Sliding-window flood counting | Keep recent request timestamps per IP, remove timestamps outside the window, and compare the remaining count with the threshold. | Flood evidence and score. |
-| 3 | SQL-injection signature matching | Match configured SQL-like patterns against the capped request input. | SQLi evidence; it never directly rejects the triggering request. |
-| 4 | Traversal and forced-browsing matching | Match configured traversal encodings and sensitive-path patterns. | Traversal/enumeration evidence; a configured traversal hit may arm the reflex for the next request. |
-| 5 | Consecutive brute-force streaks | For declared login routes, count only configured invalid-credential responses per client and target. A configured success resets that target's streak. | Brute-force evidence after the threshold. |
-| 6 | Distinct unknown-route scanning | Record unique raw paths only when they do not match a route template. Repeated requests and known-route `404`s do not increase the count. | Reconnaissance evidence. |
-| 7 | Object-ID enumeration | For watched object routes, count unique IDs per client and template in a time window. Refused lookups and sequential IDs increase score after the diversity threshold. | BOLA/IDOR harvesting evidence, not ownership proof. |
-| 8 | Response ownership verification | Verify a caller token, hold a bounded JSON response, and compare its configured owner field to the caller claim. A foreign object becomes `404`; foreign list items are removed. | Immediate data protection plus ownership evidence. |
-| 9 | Reputation cooldown | Look up the address in the bundled/optional reputation feed. The address still contributes score during its cooldown, but it only creates a fresh alert when the cooldown allows it. | Supporting context without flooding telemetry. |
+| File | Algorithm name | Use |
+| ----- | ----- | ----- |
+| `adaptive/baseline.py` | Rolling Median and MAD Baseline | Learns each endpoint’s normal request rate and detects unusual traffic spikes. |
+| `adaptive/risk.py` | Weighted Risk Scoring with Guardrails | Combines detector evidence, traffic abnormality, and campaign information to safely select monitor, throttle, or temporary block. |
+| `correlation/features.py` + `cluster.py` + `agent.py` | Rule-Based Campaign Correlation with Union-Find Clustering | Groups related IPs into attack campaigns and calculates campaign confidence, type, stages, and severity. |
+| `campaigns/repository.py` | Campaign Continuation Matching | Continues the same attack campaign across cycles, including when attackers change IP addresses. |
 
-All stateful gateway detectors bound retained clients, paths, identifiers, or
-timestamps and evict stale records. This prevents attacker-controlled input
-from becoming unbounded memory.
+### 1. Rolling Median and MAD Baseline
 
-## B. Decision-engine algorithms
+**File:** `decision-engine/iasg/adaptive/baseline.py`
+**Purpose:** Uses a rolling **median + MAD** baseline, with warm-up, minimum/maximum limits, hysteresis, and cooldown.
 
-| # | Algorithm | Simple explanation | Result |
-| --- | --- | --- | --- |
-| 10 | Trusted completed traffic windows | Consume arrivals and completions into minute windows. Learn only from complete, healthy windows so an outage or missing telemetry cannot become normal traffic. | Reliable per-endpoint observations. |
-| 11 | Rolling median and MAD baseline | Keep recent trusted endpoint rates. Calculate the median and median absolute deviation (MAD), then derive a bounded threshold. Warm-up, hysteresis, and cooldown prevent unstable changes. | A stable normal-rate baseline per method and route. |
-| 12 | Union-find campaign clustering | Build one profile per IP, compare endpoint, user agent, subnet, detector, and timing, then join IPs sharing enough identity traits at the same time. Union-find makes chained matches one campaign. | Coordinated groups rather than isolated alerts. |
-| 13 | Campaign confidence and classification | Score how strongly a cluster shares traits, recognize solo high-severity activity, identify stages, and derive type and severity. | An explainable campaign assessment. |
-| 14 | Campaign continuation matching | Merge a new campaign with stored history when IP overlap is strong. If IPs rotated, use a deliberately strict behavior signature instead. Quiet campaigns become contained after configured quiet cycles. | One investigation across cycles instead of repeated incidents. |
-| 15 | Weighted risk scoring with guardrails | Combine the strongest deterministic evidence, repeated evidence, baseline deviation, campaign severity, and confidence into a bounded score. Evidence/confidence minimums and an action ceiling can reduce the result. | `monitor`, `throttle`, or temporary-block recommendation. |
-| 16 | Policy safety simulation | Before writing, apply declared allowlists and shared-address rules, inspect uncertainty, avoid weakening a standing policy, and soften only when rules allow it. | A safer action that considers collateral risk. |
-| 17 | Bounded operator-feedback adjustment | Compare repeated human overrides with the engine's recommendation. Only consistent corrections move a future proposal, by at most one action rung; all guardrails still run afterwards. | Small, auditable adaptation without self-authorizing enforcement. |
-
-## Pseudocode
-
-The pseudocode below uses the same format as the algorithm reference: source
-file(s), a short purpose, then pseudocode. It is simplified for understanding;
-configuration supplies values such as windows, thresholds, limits, and action
-ceilings.
-
-### 1. Trusted client-IP resolution
-
-**File:** `gateway/internal/netutil/ip.go`<br>
-**Purpose:** Attribute every request to one safe client IP.<br>
 **Pseudocode:**
 
 ```text
-peer = IP address of the direct TCP connection
+FOR each endpoint every minute:
+    count its requests
 
-IF peer is not in trusted_proxy_ranges:
-    RETURN peer
+    IF traffic window is trusted:
+        add count to recent history
+        keep only latest N windows
 
-FOR address IN X-Forwarded-For, read from right to left:
-    IF address is not in trusted_proxy_ranges:
-        RETURN address
+        normal_rate = median(history)
+        spread = median absolute deviation(history)
 
-RETURN peer
+        new_limit = normal_rate + (spread × multiplier)
+        keep new_limit inside minimum and maximum limits
+
+        IF enough history exists AND limit changed enough AND cooldown ended:
+            save new_limit as the endpoint baseline
 ```
 
-### 2. Sliding-window flood counting
+### 2. Weighted Risk Scoring with Guardrails
 
-**File:** `gateway/internal/signals/api_flooding.go`<br>
-**Purpose:** Detect too many requests from one IP in a rolling window.<br>
+**File:** `decision-engine/iasg/adaptive/risk.py`
+**Purpose:** Combines deterministic evidence, traffic deviation, campaign confidence, weighted scoring, action thresholds, and enforcement guardrails.
+
 **Pseudocode:**
 
 ```text
-FOR each request from client_ip:
-    remove timestamps older than flood_window
-    append current time to client_ip timestamps
+FOR each suspicious IP:
+    deterministic_score = strongest detector score
+    add points for repeated detector evidence
 
-count = number of retained timestamps
-score = score based on count / threshold
+    behavioural_score = how far traffic exceeds endpoint baseline
+    campaign_score = campaign confidence × campaign severity
 
-IF count is greater than threshold:
-    emit flood evidence
+    total_risk =
+        deterministic_score × weight
+        + behavioural_score × weight
+        + campaign_score × weight
+
+    choose action from total_risk:
+        high score → temporary block
+        medium score → throttle
+        otherwise → monitor
+
+    apply safety rules:
+        no real detector evidence → monitor only
+        too little evidence/confidence → reduce action
+        maximum automatic action → never exceed it
+
+    return score, confidence, selected action, explanation
 ```
 
-### 3. SQL-injection signature matching
+### 3. Rule-Based Campaign Correlation with Union-Find Clustering
 
-**File:** `gateway/internal/signals/sqli_injection.go`<br>
-**Purpose:** Detect configured SQL-injection patterns without rejecting the current request.<br>
+**Files:** `decision-engine/iasg/correlation/features.py`, `cluster.py`, and `agent.py`
+
 **Pseudocode:**
 
 ```text
-input = capped request path, query, and body content
+FOR each new evidence event:
+    group events by source IP
+    build one activity profile for each IP
 
-FOR each configured SQL pattern:
-    IF pattern matches input:
-        save request-scoped SQLi evidence
-        emit SQLi evidence for this request
-        stop checking further patterns
+FOR each pair of IP profiles:
+    compare shared traits:
+        endpoint
+        user agent
+        attack type
+        subnet
+        activity time
 
-forward the request
+    IF IPs overlap in time
+       AND share at least two identity traits:
+        link both IPs into one group
+
+merge all linked IPs using Union-Find
+→ each group becomes a possible campaign
+
+FOR each campaign group:
+    IF one IP has too little evidence:
+        ignore it as noise
+
+    calculate confidence from:
+        shared traits for multiple IPs
+        OR event volume and severity for one IP
+
+    identify attack stages
+    assign campaign type and severity
+
+sort campaigns by highest confidence
+
+return related attack campaigns
 ```
 
-### 4. Traversal and forced-browsing matching
+### 4. Campaign Continuation Matching
 
-**File:** `gateway/internal/signals/enumeration_path_traversal.go`<br>
-**Purpose:** Detect traversal encodings and sensitive-path probes.<br>
+**File:** `decision-engine/iasg/campaigns/repository.py`
+
 **Pseudocode:**
 
 ```text
-input = request path and relevant capped request content
+FOR each new campaign from this control cycle:
+    compare it with all saved campaigns
 
-IF input matches a traversal pattern:
-    emit high-confidence traversal evidence
-ELSE IF input matches a forced-browsing pattern:
-    emit enumeration evidence
+    first_match = IP address overlap
 
-forward the request
+    IF enough IP addresses overlap:
+        treat it as the same campaign
+
+    OTHERWISE:
+        compare behaviour signature:
+            same detector
+            same endpoint
+            same user agent
+            same subnet
+            recent enough activity
+
+        IF behaviour similarity reaches threshold:
+            treat it as the same campaign
+            mark that attacker rotated IP addresses
+
+    IF no matching campaign exists:
+        create a new campaign ID
+
+    IF a matching campaign exists:
+        merge new IPs, evidence, stages, and severity
+        increase confidence slightly
+        reset quiet-cycle count
+
+FOR each saved active campaign not seen this cycle:
+    increase quiet-cycle count
+
+    IF quiet cycles reach 3:
+        mark campaign as contained
+
+return updated campaigns
 ```
 
-### 5. Consecutive brute-force streaks
+## Gateway algorithms
 
-**File:** `gateway/internal/signals/brute_force.go`<br>
-**Purpose:** Detect repeated configured invalid-login outcomes for one client and target.<br>
-**Pseudocode:**
+| File | Algorithm | Purpose |
+| ----- | ----- | ----- |
+| `signals/evidence.go` | Ratio score mapping | Converts detector counts into a 0–100 evidence score. |
+| `signals/api_flooding.go` | Sliding-window flood detection | Detects too many requests from one IP in one minute. |
+| `signals/brute_force.go` | Consecutive failed-login detection | Detects repeated failed logins per IP and account. |
+| `signals/sqli_injection.go` | SQLi signature matching | Detects configured SQL-injection patterns. |
+| `signals/enumeration_path_traversal.go` | Traversal/enumeration signature matching | Detects path traversal and forced-browsing patterns. |
+| `signals/unknown_route_scanning.go` | Distinct unknown-route detection | Detects an IP probing many unconfigured paths. |
+| `signals/object_enumeration.go` | Object-ID harvesting detection | Detects BOLA/IDOR-style walking through object IDs. |
+| `signals/ip_reputation.go` | Reputation lookup with cooldown | Flags IPs present in a known-bad feed. |
+| `ownership/guard.go` | Object ownership guard | Prevents a user receiving another user’s protected data. |
+| `enforcement/reflex.go` | Bounded gateway reflex | Temporarily blocks an IP after trusted high-score evidence. |
+| `policy/redis_limiter.go` + `token_bucket.lua` | Distributed token bucket | Enforces one shared throttle quota across gateway replicas. |
+| `policy/limiter.go` | Local sliding-window limiter | Older/local limiter used by tests or standalone embedding; normal server use is Redis token buckets. |
+| `telemetry/route.go` | Most-specific route matching | Matches a request to its configured route template. |
+
+### 5. Shared evidence score
+
+**File:** `gateway/internal/signals/evidence.go`
 
 ```text
-IF request does not match a configured login route:
-    forward the request
+FOR each detector count and threshold:
 
-target = optional login identity from the capped request
-response = forward the request and observe its status
+    IF count is zero OR threshold is invalid:
+        return score 0
 
-IF response status means invalid credentials for this route:
-    streak = (client_ip, route, target)
-    reset streak if its last failure is outside the window
-    increment streak
-ELSE IF response status means success for this route:
-    clear streak for (client_ip, route, target)
+    IF count is below threshold:
+        return a small proportional score from 0 to 30
 
-IF streak failures reach the threshold:
-    emit brute-force evidence
+    IF count is at or above 5 × threshold:
+        return score 100
+
+    IF count is at or above 2 × threshold:
+        return score 80
+
+    OTHERWISE:
+        return score 60
 ```
 
-### 6. Distinct unknown-route scanning
+### 6. API flood detector
 
-**File:** `gateway/internal/signals/unknown_route_scanning.go`<br>
-**Purpose:** Detect reconnaissance across many unconfigured paths.<br>
-**Pseudocode:**
+**File:** `gateway/internal/signals/api_flooding.go`
 
 ```text
-route = match request method and path against configured route templates
+FOR each request from an IP:
 
-IF route is matched:
-    forward the request
+    remove timestamps older than one minute
+    add the current request timestamp
 
-path = raw escaped path
-remove client_ip paths older than scan_window
-record path only once in the retained set
+    request_count = timestamps remaining
 
-IF number of distinct paths reaches the threshold:
-    emit route-scan evidence
+    IF request_count is greater than configured RPM threshold:
+        emit api_flooding evidence
+        mark threshold crossed
+
+    score = shared ratio score(request_count, RPM threshold)
+
+    allow the current request to continue
 ```
 
-### 7. Object-ID enumeration
+### 7. Brute-force login detector
 
-**File:** `gateway/internal/signals/object_enumeration.go`<br>
-**Purpose:** Detect BOLA/IDOR-style walking through many object identifiers.<br>
-**Pseudocode:**
+**File:** `gateway/internal/signals/brute_force.go`
 
 ```text
-template, identifiers = match request against watched object routes
+FOR each configured login request:
 
-IF no watched template matches:
-    forward the request
+    send request to backend
+    read backend response status
 
-response = forward the request and observe its status
-object_id = join identifiers for this object
-record object_id and whether response is 401, 403, or 404
-remove object IDs older than enumeration_window
+    IF status means invalid credentials:
+        identify client IP + login route + username/email
+        increase that target's consecutive failure streak
 
-score = distinct-ID score
-IF distinct IDs reached the threshold:
-    add a bonus for many denied responses
-    add a bonus for a long sequential numeric-ID run
-    emit object-enumeration evidence
+    IF status means successful login:
+        clear that target's failure streak
+
+    remove streaks older than the configured window
+
+    strongest_streak = largest failure streak for this IP
+
+    IF strongest_streak >= maximum failures:
+        emit consecutive_failed_logins evidence
+
+    score = shared ratio score(strongest_streak, maximum failures)
 ```
 
-### 8. Response ownership verification
+### 8. SQL-injection detector
 
-**File:** `gateway/internal/ownership/guard.go`<br>
-**Purpose:** Prevent protected JSON responses from exposing another user's data.<br>
-**Pseudocode:**
+**File:** `gateway/internal/signals/sqli_injection.go`
 
 ```text
-IF request route has no ownership rule:
-    forward the request
+FOR each request:
 
-caller = verify bearer token
-IF caller is missing, expired, or forged:
-    emit ownership evidence
-    return 401
-IF caller has a configured bypass role:
-    forward the request
+    read safely capped body
+    read path, raw path, and decoded query values
+    combine them into one inspection text
+    normalize SQL comments and uppercase text
 
-response = hold bounded backend JSON response
-IF response cannot be verified:
-    return 404 when on_unverifiable is deny
-    otherwise release original response
+    matched_patterns = configured SQL patterns found in text
 
-IF response is one object AND object.owner != caller.id:
-    emit owner-mismatch evidence
-    return 404
-IF response is a list:
-    remove items whose owner differs from caller.id
+    IF no patterns match:
+        score = 0
 
-release verified response
-```
+    ELSE IF only low-confidence pattern "--" matches:
+        score = 20
+        do not fire an alert
 
-### 9. Reputation cooldown
-
-**File:** `gateway/internal/signals/ip_reputation.go`<br>
-**Purpose:** Add known-bad address context without repeatedly flooding telemetry.<br>
-**Pseudocode:**
-
-```text
-IF client_ip is not in the reputation feed:
-    return no evidence
-
-always provide the configured reputation score
-
-IF client_ip fired inside its cooldown:
-    return score without a new threshold crossing
-
-record a new cooldown timestamp
-emit reputation evidence for this request
-```
-
-### 10. Trusted completed traffic windows
-
-**File:** `decision-engine/iasg/adaptive/windows.py`<br>
-**Purpose:** Produce only complete, healthy traffic windows for adaptive learning.<br>
-**Pseudocode:**
-
-```text
-read new arrival records and completion records
-group records by their one-minute time window and endpoint
-
-FOR each finished window:
-    IF arrivals, completions, and telemetry health show the window is incomplete:
-        mark it untrusted
     ELSE:
-        count endpoint requests and mark it trusted
+        mark threshold crossed
+        one match   → score 70
+        two matches → score 85
+        3+ matches  → score 100
 
-return completed endpoint windows
+    store evidence for this request
+    allow the request to continue
 ```
 
-### 11. Rolling median and MAD baseline
+### 9. Path traversal and forced-browsing detector
 
-**File:** `decision-engine/iasg/adaptive/baseline.py`<br>
-**Purpose:** Learn each endpoint's normal request rate and stable threshold.<br>
-**Pseudocode:**
+**File:** `gateway/internal/signals/enumeration_path_traversal.go`
 
 ```text
-FOR each trusted endpoint window:
-    append observed request rate to recent samples
-    keep only the configured number of samples
+FOR each request:
 
-median_rate = median(samples)
-mad = median(abs(sample - median_rate) for each sample)
-proposed = median_rate + mad_multiplier * max(mad, minimum_mad)
-proposed = clamp(proposed, minimum_threshold, maximum_threshold)
+    inspect path and query in original form
+    decode URL text up to two times
 
-IF warm-up is complete AND hysteresis and cooldown allow a change:
-    save proposed as the endpoint threshold
+    traversal_hits = match patterns such as "../" or encoded variants
+    enum_hits = match sensitive paths such as "/.env" or "/etc/passwd"
 
-deviation = max(0, (observed_rate - threshold) / threshold)
-```
+    IF traversal and enumeration both match:
+        score = 100
 
-### 12. Union-find campaign clustering
+    ELSE IF traversal matches:
+        score = 80
 
-**Files:** `decision-engine/iasg/correlation/features.py`, `cluster.py`<br>
-**Purpose:** Group related IPs into campaigns using shared traits and timing.<br>
-**Pseudocode:**
+    ELSE IF enumeration matches:
+        score = 50
 
-```text
-build one profile per IP from its evidence
-create one union-find group per IP
-
-FOR every pair of IP profiles:
-    traits = shared endpoint, user agent, subnet, detector, and timing
-    identity_traits = endpoint + user agent + subnet matches
-
-    IF timing overlaps AND at least two identity traits match:
-        union both IPs into one group
-
-FOR each union-find group:
-    return its member IPs and shared traits as a candidate campaign
-```
-
-### 13. Campaign confidence and classification
-
-**File:** `decision-engine/iasg/correlation/agent.py`<br>
-**Purpose:** Explain the confidence, type, stages, and severity of each campaign.<br>
-**Pseudocode:**
-
-```text
-FOR each candidate campaign:
-    calculate confidence from shared traits, timing, evidence volume, and severity
-
-    IF one IP has immediate high-severity evidence:
-        allow it to become a solo campaign
-
-    stages = order observed attack types by time
-    type = classify dominant detector and multi-stage combinations
-    severity = derive from evidence and confidence
-
-    create campaign with confidence, type, severity, stages, and reason
-```
-
-### 14. Campaign continuation matching
-
-**File:** `decision-engine/iasg/campaigns/repository.py`<br>
-**Purpose:** Continue the same incident across cycles and cautious IP rotation.<br>
-**Pseudocode:**
-
-```text
-FOR each fresh campaign:
-    find saved campaign with strongest IP overlap
-
-    IF overlap meets merge threshold:
-        merge fresh evidence into saved campaign
-    ELSE IF recent saved campaign has a strict matching behavior signature:
-        merge as an IP-rotation continuation
     ELSE:
-        create a new campaign
+        score = 0
 
-FOR saved campaigns not seen this cycle:
-    increment quiet-cycle count
-    mark contained after the configured number of quiet cycles
+    threshold is crossed whenever either pattern type matches
+    store request evidence
 ```
 
-### 15. Weighted risk scoring with guardrails
+### 10. Unknown-route scanning detector
 
-**File:** `decision-engine/iasg/adaptive/risk.py`<br>
-**Purpose:** Select a safe recommendation from evidence, baseline deviation, and campaign facts.<br>
-**Pseudocode:**
+**File:** `gateway/internal/signals/unknown_route_scanning.go`
 
 ```text
-deterministic_score = strongest non-reputation signal
-deterministic_score += bonus for repeated deterministic evidence
-behavioural_score = baseline deviation * 100
-campaign_score = campaign confidence * campaign severity
+FOR each request:
 
-total_risk = weighted sum of deterministic, behavioural, and campaign scores
-candidate = monitor, throttle, or temporary block based on total_risk
+    route = match request against configured route templates
 
-apply at most one learned feedback rung to candidate
+    IF route is known:
+        ignore it
 
-IF no deterministic evidence and no explicit ready-baseline throttle:
-    candidate = monitor
-IF evidence count, confidence, or automatic-action ceiling is insufficient:
-    reduce candidate to the safe action
+    IF route is unmatched:
+        keep the raw path for this IP
+        remove paths older than the configured window
+        do not count repeated paths twice
 
-return guarded action, risk score, confidence, and throttle rate
+    distinct_paths = number of retained unknown paths
+
+    IF distinct_paths >= configured threshold:
+        emit unknown_route_scanning evidence
+
+    score = shared ratio score(distinct_paths, threshold)
 ```
 
-### 16. Policy safety simulation
+### 11. Object-enumeration / BOLA harvesting detector
 
-**File:** `decision-engine/iasg/policy/simulation.py`<br>
-**Purpose:** Check collateral risk before a policy is written.<br>
-**Pseudocode:**
+**File:** `gateway/internal/signals/object_enumeration.go`
 
 ```text
-FOR each proposed decision:
-    IF IP is declared allowlisted:
-        reject enforcement
+FOR each request to a configured protected object route:
 
-    standing = currently active policy for the same IP and scope
-    IF proposed action is weaker than standing action:
-        retain standing action
+    extract object ID from route template
+    send request to backend
+    record whether response was denied: 401, 403, or 404
 
-    IF IP belongs to a declared shared range:
-        soften block to throttle
-    ELSE IF IP appears shared and campaign confidence is not high:
-        soften one action rung
+    keep distinct object IDs per IP and route
+    remove IDs older than configured window
 
-    return the reviewed decision and reasons
+    distinct_ids = number of different IDs requested
+    denied_share = denied responses / distinct IDs
+    sequential_run = longest numeric sequence among IDs
+
+    score = shared ratio score(distinct_ids, threshold)
+
+    IF distinct_ids reaches threshold:
+        mark threshold crossed
+
+        IF denied_share >= 50%:
+            add 20 points
+
+        IF sequential_run >= 5:
+            add 10 points
+
+        cap score at 100
 ```
 
-### 17. Bounded operator-feedback adjustment
+### 12. IP reputation detector
 
-**File:** `decision-engine/iasg/feedback/memory.py`<br>
-**Purpose:** Apply repeated human corrections without bypassing safety rules.<br>
-**Pseudocode:**
+**File:** `gateway/internal/signals/ip_reputation.go`
 
 ```text
-WHEN an operator overrides an agent recommendation:
-    direction = stronger, weaker, or unchanged
-    add direction to the tally for that campaign type
+FOR each request:
 
-WHEN calculating a later recommendation:
-    net = stronger corrections - weaker corrections
+    IF IP is not in known-bad reputation feed:
+        score = 0
+        stop
 
-    IF absolute(net) meets minimum sample count:
-        bias = +1 or -1
+    score = configured reputation score
+
+    IF this IP has not fired during cooldown:
+        mark threshold crossed
+        record current request ID
+        start cooldown
+
+    OTHERWISE:
+        keep score, but do not create another fresh signal
+```
+
+### 13. Object ownership guard
+
+**File:** `gateway/internal/ownership/guard.go`
+
+```text
+FOR each protected object request:
+
+    verify caller JWT
+
+    IF token is invalid or missing:
+        return 401
+
+    IF caller has bypass role:
+        forward request unchanged
+
+    hold backend response safely
+    read object owner field from JSON response
+
+    IF single object's owner != caller identity:
+        record ownership_violation evidence
+        return 404
+
+    IF response is a list:
+        remove items not owned by caller
+        return filtered list
+
+    IF same IP has 3+ ownership violations in 5 minutes:
+        raise evidence score from 80 to 100
+```
+
+### 14. Gateway reflex block
+
+**File:** `gateway/internal/enforcement/reflex.go`
+
+```text
+AFTER detectors finish processing a request:
+
+    FOR each detector evidence item:
+
+        IF reflex is disabled:
+            stop
+
+        IF IP is exempt, invalid, private, or loopback:
+            stop
+
+        IF detector is not explicitly allowed in block.signals:
+            continue
+
+        IF detector did not cross its threshold:
+            continue
+
+        IF evidence score is below reflex minimum score:
+            continue
+
+        IF IP is not already blocked:
+            create temporary block until now + configured duration
+
+        stop after first qualifying signal
+
+ON later requests:
+
+    IF temporary block has not expired:
+        return 403
+
+    IF expired:
+        allow request and remove block
+```
+
+### 15. Distributed Redis token bucket
+
+**Files:** `gateway/internal/policy/redis_limiter.go`, `token_bucket.lua`
+
+```text
+FOR each request covered by a throttle policy:
+
+    confirm policy still exists and has a positive TTL
+
+    bucket_key = hash(IP + route + method + policy identity)
+
+    read bucket tokens and last update time
+    refill tokens based on elapsed time and policy RPM
+    cap tokens at burst capacity
+
+    IF tokens >= 1:
+        remove one token
+        allow request
+
     ELSE:
-        bias = 0
+        calculate time until one token is available
+        return 429 with Retry-After
 
-move the recommendation by at most one action rung
-run normal evidence, confidence, simulation, and writer safeguards afterwards
+    expire bucket when it would naturally refill,
+    never later than the policy TTL
+
+IF Redis is unavailable:
+    fail open immediately
+    temporarily avoid repeated Redis attempts
 ```
 
-## Enforcement after the algorithms
+### 16. Local sliding-window limiter
 
-An accepted decision is written only by `iasg/policy/writer.py`. It requires a
-TTL, rejects unsafe address classes, obeys the per-cycle cap, and supports
-dry-run mode. The gateway then refreshes those policy keys in a background
-snapshot. For a throttle, a Redis Lua token bucket atomically refills and
-consumes tokens by client IP, exact path, and method; its timeout is bounded
-and failures allow traffic rather than holding a request.
+**File:** `gateway/internal/policy/limiter.go`
 
-## How the pieces connect
+```text
+FOR each throttled IP:
 
-```mermaid
-flowchart LR
-  A[1-9 Gateway observations] --> B[Telemetry events]
-  B --> C[10 Window quality]
-  C --> D[11 Baselines]
-  B --> E[12-14 Campaigns]
-  D --> F[15 Risk]
-  E --> F
-  F --> G[16 Simulation]
-  G --> H[17 Feedback-adjusted safe policy]
-  H --> I[Expiring gateway enforcement]
+    remove request timestamps older than one minute
+    add current request timestamp
+
+    IF request count <= policy limit:
+        allow request
+
+    OTHERWISE:
+        retry_after =
+            oldest request timestamp + one minute - now
+
+        return rate-limited result
 ```
 
-The gateway's local reflex is intentionally outside this list: it is a short,
-configured stopgap based on one high-confidence gateway signal. It never
-replaces the decision engine's campaign-based decision.
+This is retained for tests and standalone embedding. The normal gateway server
+uses the distributed Redis token bucket instead, so multiple replicas cannot
+each create their own separate allowance.
 
-## Source map
+### 17. Most-specific route matcher
 
-| Algorithms | Main code |
-| --- | --- |
-| 1-9 | `gateway/internal/netutil/`, `gateway/internal/signals/`, `gateway/internal/ownership/` |
-| 10-11 | `decision-engine/iasg/adaptive/windows.py`, `baseline.py` |
-| 12-14 | `decision-engine/iasg/correlation/`, `decision-engine/iasg/campaigns/repository.py` |
-| 15 | `decision-engine/iasg/adaptive/risk.py` |
-| 16 | `decision-engine/iasg/policy/simulation.py`, `policy/writer.py` |
-| 17 | `decision-engine/iasg/feedback/` |
+**File:** `gateway/internal/telemetry/route.go`
+
+```text
+FOR each request path:
+
+    split request path into segments
+
+    FOR each route template with same HTTP method:
+
+        reject it if segment count differs
+
+        compare every segment:
+            literal segment must match exactly
+            wildcard segment accepts one non-empty value
+
+    choose the matching template with most literal segments
+
+    IF no template matches:
+        return "<unmatched>"
+```
+
+For example, `/api/products/search` wins over `/api/products/{id}` because it
+has more fixed literal segments.
