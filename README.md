@@ -62,6 +62,19 @@ See the [decision-engine overview](decision-engine/OVERVIEW.md) and
 [adaptive-policy documentation](gateway/docs/adaptive-policy.md) for the
 decision boundaries and their safeguards.
 
+## Demo enforcement categories
+
+The eight focused JMeter demonstrations in [`demo/`](demo/README.md) are
+grouped by the component that takes the immediate security action. A gateway
+reflex can still be followed by a decision-engine campaign and expiring policy.
+
+| Category | Count | Attacks |
+| --- | ---: | --- |
+| Gateway reflex | 2 | API Flooding, Path Traversal |
+| Decision engine | 4 | Object-ID Enumeration, Brute Force, SQL Injection, Unknown Route Scanning |
+| Both | 1 | Ownership Check / BOLA — gateway ownership guard immediately returns `404`; decision engine can later create policy |
+| Others | 1 | Known Bad Address — reputation context only; no direct enforcement |
+
 ## Functional requirements
 
 Functional requirements describe the observable jobs the system must perform.
