@@ -187,9 +187,23 @@ def test_runtime_learning_requires_complete_heartbeat_coverage():
 def test_signature_decision_is_complete_without_a_completed_rate_window():
     controller = AdaptiveController(MemoryBaselineRepository(), MemoryLifecycleRepository(), AdaptiveConfig())
     rows = [Evidence(timestamp=NOW, ip="203.0.113.5", endpoint="/api/search", method="GET", detector="sqli", severity="high")]
-    selected, _, _ = controller.decisions(campaign(0.9), rows)[0]
+    incident = campaign(0.9)
+    incident.signature = {"endpoint": "/api/search", "detector": "sqli"}
+    selected, _, _ = controller.decisions(incident, rows)[0]
     assert selected.risk_score > 0
     assert selected.explanation["deterministic_evidence_count"] == 1
+    assert (selected.method, selected.route_template) == ("GET", "/api/search")
+    assert selected.scope == "client_endpoint"
+
+
+def test_unknown_route_scan_stays_client_wide_without_a_route_template():
+    controller = AdaptiveController(MemoryBaselineRepository(), MemoryLifecycleRepository(), AdaptiveConfig())
+    rows = [Evidence(timestamp=NOW, ip="203.0.113.5", endpoint="/not-a-route", method="GET", detector="unknown_route_scanning", severity="high")]
+    incident = campaign(0.9)
+    incident.signature = {"endpoint": "/not-a-route", "detector": "unknown_route_scanning"}
+    selected, _, _ = controller.decisions(incident, rows)[0]
+    assert (selected.method, selected.route_template) == ("", "")
+    assert selected.scope == "client"
 
 
 def test_emergency_blocklist_is_an_explicit_global_override_even_in_monitor_mode():

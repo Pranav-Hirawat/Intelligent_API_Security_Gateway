@@ -16,6 +16,7 @@ from iasg.models import (
     ACTION_TEMP_BLOCK,
     ACTION_THROTTLE,
     Campaign,
+    DETECTOR_UNKNOWN_ROUTE_SCAN,
     Evidence,
     PolicyDecision,
 )
@@ -131,8 +132,9 @@ class AdaptiveController:
         staged: list[tuple[PolicyDecision, bool, str]] = []
         for ip in campaign.ips:
             assessment = self._windows.get(ip)
-            context = assessment.most_deviant if assessment else None
+            baseline_context = assessment.most_deviant if assessment else None
             relevant = [row for row in evidence if row.ip == ip]
+            context = self._campaign_endpoint(campaign, relevant, baseline_context)
             result = calculate_risk(
                 self.config,
                 campaign,
@@ -146,6 +148,43 @@ class AdaptiveController:
             recommendation, enforce, why = self.lifecycle.stage(decision, self.config)
             staged.append((recommendation.decision, enforce, why))
         return staged
+
+    @staticmethod
+    def _campaign_endpoint(
+        campaign: Campaign,
+        evidence: list[Evidence],
+        fallback: EndpointObservation | None,
+    ) -> EndpointObservation | None:
+        """Prefer the campaign's demonstrated target over an unrelated rate window.
+
+        Attack evidence is enough to name a protected API endpoint even before
+        it has a completed adaptive-rate window. Without this, a short SQLi
+        demonstration creates a client-wide policy and the dashboard can only
+        honestly show "All routes". Unknown-route scans deliberately remain
+        client-wide: their many unmatched paths have no stable route template
+        for the gateway to enforce.
+        """
+        if campaign.signature.get("detector") == DETECTOR_UNKNOWN_ROUTE_SCAN:
+            return fallback
+
+        route = str(campaign.signature.get("endpoint") or "").strip()
+        if not route:
+            return fallback
+
+        methods: dict[str, int] = {}
+        for row in evidence:
+            if row.endpoint != route or not row.method:
+                continue
+            method = row.method.upper()
+            methods[method] = methods.get(method, 0) + 1
+        if not methods:
+            return fallback
+
+        method = min(methods, key=lambda name: (-methods[name], name))
+        key = EndpointKey.of(method, route)
+        if fallback and fallback.key == key:
+            return fallback
+        return EndpointObservation(key=key, observed=0, baseline=None, deviation=0.0)
 
     def _decision(
         self,
