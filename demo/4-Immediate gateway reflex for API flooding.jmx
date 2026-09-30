@@ -64,7 +64,7 @@ If Settings uses a different flood threshold, set FLOOD_REQUESTS to at least 2 x
           <boolProp name="LoopController.continue_forever">false</boolProp>
         </LoopController>
         <hashTree>
-          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Flood GET /api/products - expect backend 200">
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Flood GET /api/products - expect backend 200" enabled="true">
             <intProp name="HTTPSampler.connect_timeout">3000</intProp>
             <intProp name="HTTPSampler.response_timeout">5000</intProp>
             <stringProp name="HTTPSampler.domain">${HOST}</stringProp>
@@ -150,7 +150,7 @@ If Settings uses a different flood threshold, set FLOOD_REQUESTS to at least 2 x
         <stringProp name="filename"></stringProp>
       </ResultCollector>
       <hashTree/>
-      <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree">
+      <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree" enabled="true">
         <boolProp name="ResultCollector.error_logging">false</boolProp>
         <objProp>
           <name>saveConfig</name>

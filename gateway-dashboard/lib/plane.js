@@ -141,20 +141,20 @@ const ACTION_PRIORITY = {
 };
 
 function scopeLabel(policy) {
+  if (!policy.method && !policy.routeTemplate) return "All routes";
   return `${policy.method} ${policy.routeTemplate}`;
 }
 
 /**
- * Make one operator-facing endpoint-policy row for each protected identity.
+ * Make one operator-facing policy row for each protected identity.
  *
- * The dashboard deliberately presents only policies that name a method and a
- * route. Legacy client-wide keys can still be enforced by the gateway, but
- * they have no endpoint scope to present here.
+ * A client-wide decision protects every route, so it must remain visible here
+ * even though it has no endpoint scope. Otherwise the gateway can return 403
+ * while this page incorrectly claims that no policy keys exist.
  */
 export function coalescePolicies(policies) {
   const byIP = new Map();
   for (const policy of policies) {
-    if (!policy.method || !policy.routeTemplate) continue;
     const group = byIP.get(policy.ip) || [];
     group.push(policy);
     byIP.set(policy.ip, group);
