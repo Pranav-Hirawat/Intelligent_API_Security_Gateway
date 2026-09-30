@@ -64,6 +64,13 @@ testing/functional-testing/
 # Local integration-test plans, screenshots, and JMeter result exports.
 testing/integration-testing/
 
+# Performance-test measurements are generated locally.  The plans, scripts,
+# defaults and report template under this directory remain versioned.
+testing/performance-testing/artifacts/
+
+# Local performance-testing suite and its generated evidence.
+testing/performance-testing/
+
 # Database
 *.db
 *.sqlite
